@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim Cinema Deluxe — A Modern Reimagining</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+<div class="film-grain" aria-hidden="true"></div>
+
+<header class="topbar" id="topbar" hidden>
+  <div class="topbar-left">
+    <span class="topbar-logo">SIM CINEMA <em>DELUXE</em></span>
+    <span class="topbar-sep">|</span>
+    <span class="topbar-studio" id="tb-studio">—</span>
+  </div>
+  <div class="topbar-right">
+    <div class="stat-pill" title="Studio funds"><span class="stat-label">FUNDS</span><span class="stat-value" id="tb-funds">$0M</span></div>
+    <div class="stat-pill" title="Studio reputation"><span class="stat-label">REP</span><span class="stat-value" id="tb-rep">0</span></div>
+    <div class="stat-pill" title="Film in production"><span class="stat-label">FILM</span><span class="stat-value" id="tb-film">#0</span></div>
+    <div class="topbar-btns">
+      <button class="icon-btn" id="btn-sound" title="Toggle sound">🔊</button>
+      <button class="icon-btn" id="btn-help" title="Help">?</button>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ============ TITLE SCREEN ============ -->
+  <section class="screen" id="screen-title">
+    <div class="title-wrap">
+      <div class="marquee">
+        <div class="marquee-lights" id="marquee-lights" aria-hidden="true"></div>
+        <div class="marquee-inner">
+          <h1 class="game-title">SIM CINEMA <span>DELUXE</span></h1>
+          <p class="game-sub">a hollywood production simulator</p>
+        </div>
+      </div>
+      <div class="title-actions">
+        <button class="btn btn-primary btn-lg" id="btn-new">▶ &nbsp;NEW STUDIO</button>
+        <button class="btn btn-ghost btn-lg" id="btn-continue" hidden>⏵ &nbsp;CONTINUE</button>
+        <button class="btn btn-ghost btn-lg" id="btn-help-title">HELP</button>
+      </div>
+      <p class="title-foot">A modern web reimagining of Shannon Schroeder's 1999 classic Mac game.</p>
+    </div>
+  </section>
+
+  <!-- ============ STUDIO SETUP ============ -->
+  <section class="screen" id="screen-studio" hidden>
+    <div class="panel center-panel">
+      <h2 class="screen-title">ESTABLISH YOUR PRODUCTION COMPANY</h2>
+      <p class="screen-sub">Hollywood remembers the companies, not the interns. Pick a name.</p>
+      <label class="field">
+        <span class="field-label">Studio name</span>
+        <input type="text" id="input-studio-name" maxlength="28" placeholder="e.g. Marquee &amp; Vine Pictures" autocomplete="off">
+      </label>
+      <div class="field-row">
+        <div class="field">
+          <span class="field-label">Starting funds</span>
+          <div class="readonly-pill" id="studio-funds">$12M</div>
+        </div>
+        <div class="field">
+          <span class="field-label">Reputation</span>
+          <div class="readonly-pill">Unknown quantity</div>
+        </div>
+      </div>
+      <p class="hint">Tip: a good name helps the press. The math doesn't care.</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-studio-go">OPEN OFFICE →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCRIPT SELECTION ============ -->
+  <section class="screen" id="screen-script" hidden>
+    <div class="screen-head">
+      <h2 class="screen-title">DEVELOPMENT <span class="phase-tag">PHASE 1 / 5</span></h2>
+      <p class="screen-sub">Three scripts land on your desk this week. Choose one to develop.</p>
+    </div>
+    <div class="card-grid" id="script-grid"></div>
+    <div class="panel center-panel narrow">
+      <label class="field">
+        <span class="field-label">Script polish (rewrites before production)</span>
+        <div class="slider-line">
+          <input type="range" id="rewrite-slider" min="0" max="4" step="1" value="1">
+          <span class="slider-val" id="rewrite-val">1 week · +$0.3M</span>
+        </div>
+      </label>
+      <p class="hint">Each rewrite week costs $0.3M and measurably improves the script.</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-script-go" disabled>SIGN THE DEAL →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BUDGET ============ -->
+  <section class="screen" id="screen-budget" hidden>
+    <div class="screen-head">
+      <h2 class="screen-title">SET THE BUDGET <span class="phase-tag">PHASE 2 / 5</span></h2>
+      <p class="screen-sub" id="budget-sub"></p>
+    </div>
+    <div class="panel center-panel narrow budget-panel">
+      <div class="budget-display"><span id="budget-amount">$10M</span><small>production budget</small></div>
+      <input type="range" id="budget-slider" min="2" max="40" step="1" value="10">
+      <div class="budget-stats" id="budget-stats"></div>
+      <p class="hint">Under-budget films struggle on set; over 125% of the ideal budget wastes money the bank will notice.</p>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btn-budget-back">← BACK</button>
+        <button class="btn btn-primary" id="btn-budget-go">CAST THE PICTURES →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CASTING ============ -->
+  <section class="screen" id="screen-casting" hidden>
+    <div class="screen-head">
+      <h2 class="screen-title">CAST &amp; CREW <span class="phase-tag">PHASE 3 / 5</span></h2>
+      <p class="screen-sub">Big names bring big audiences — and big paychecks. Balance draw against cost.</p>
+    </div>
+    <div class="casting-grid" id="casting-grid"></div>
+    <div class="panel center-panel narrow">
+      <div class="cast-summary" id="cast-summary"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btn-cast-back">← BACK</button>
+        <button class="btn btn-primary" id="btn-cast-go" disabled>COMMENCE PRODUCTION →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRODUCTION LOOP ============ -->
+  <section class="screen" id="screen-production" hidden>
+    <div class="prod-head">
+      <div class="prod-film">
+        <img id="prod-poster" class="prod-poster" alt="Film poster">
+        <div>
+          <h2 class="prod-title" id="prod-title">—</h2>
+          <p class="prod-meta" id="prod-meta">—</p>
+        </div>
+      </div>
+      <div class="prod-date" id="prod-date">—</div>
+    </div>
+
+    <div class="prod-grid">
+      <div class="panel prod-panel">
+        <h3 class="panel-title">ADVERTISING <span class="panel-sub" id="ad-buzz">buzz 0</span></h3>
+        <ul class="ad-list" id="ad-list"></ul>
+      </div>
+
+      <div class="panel prod-panel">
+        <h3 class="panel-title">PRODUCTION <span class="panel-sub" id="prod-total">total 0%</span></h3>
+        <div class="phase-list" id="phase-list"></div>
+        <div class="prod-quality-line">
+          <span>projected quality</span>
+          <div class="bar"><div class="bar-fill" id="prod-quality-bar"></div></div>
+          <span id="prod-quality-val">—</span>
+        </div>
+        <div class="prod-cost-line" id="prod-cost-line">Next week costs $—M</div>
+      </div>
+
+      <div class="panel prod-panel messages-panel">
+        <h3 class="panel-title">MESSAGES</h3>
+        <div class="messages" id="messages"></div>
+      </div>
+    </div>
+
+    <div class="prod-controls">
+      <button class="btn btn-danger" id="btn-terminate" title="Abandon this film (lose all money spent on it)">✕ TERMINATE</button>
+      <button class="btn btn-ghost" id="btn-tagline">TAGLINE</button>
+      <button class="btn btn-ghost" id="btn-screen" disabled title="Test screen for audiences ($0.5M)">▸ SCREEN</button>
+      <button class="btn btn-primary" id="btn-release" disabled title="Release the film">🎞 RELEASE</button>
+      <span class="speed-ctl">
+        <span class="speed-label">week speed</span>
+        <button class="icon-btn speed-btn active" data-speed="1" title="One week at a time">1×</button>
+        <button class="icon-btn speed-btn" data-speed="300" title="Auto: ~every 1.2s">2×</button>
+        <button class="icon-btn speed-btn" data-speed="700" title="Auto: fast">4×</button>
+      </span>
+      <button class="btn btn-primary btn-lg" id="btn-pass-week">⏭ PASS WEEK</button>
+    </div>
+  </section>
+
+  <!-- ============ BOX OFFICE ============ -->
+  <section class="screen" id="screen-boxoffice" hidden>
+    <div class="bo-head">
+      <div class="bo-film">
+        <img id="bo-poster" class="bo-poster" alt="Film poster">
+        <div>
+          <h2 class="bo-title" id="bo-title">—</h2>
+          <p class="bo-meta" id="bo-meta">—</p>
+          <div class="bo-totals">
+            <div><span class="bo-total-label">GROSS</span><span class="bo-total-value" id="bo-gross">$0M</span></div>
+            <div><span class="bo-total-label">WEEK</span><span class="bo-total-value" id="bo-week">1</span></div>
+            <div><span class="bo-total-label">RANK</span><span class="bo-total-value" id="bo-rank">#—</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="bo-speed-ctl">
+        <span class="speed-label">release speed</span>
+        <button class="icon-btn speed-btn active" data-speed="bo-1">1×</button>
+        <button class="icon-btn speed-btn" data-speed="bo-300">2×</button>
+      </div>
+    </div>
+    <div class="bo-grid">
+      <div class="panel bo-panel">
+        <h3 class="panel-title">BOX OFFICE TOP 10 <span class="panel-sub">weekly gross · $M</span></h3>
+        <table class="bo-table" id="bo-table">
+          <thead><tr><th>#</th><th>Movement</th><th>Film</th><th>Studio</th><th class="num">This week</th><th class="num">Total</th></tr></thead>
+          <tbody id="bo-rows"></tbody>
+        </table>
+      </div>
+      <div class="panel bo-panel">
+        <h3 class="panel-title">YOUR FILM'S CURVE <span class="panel-sub">weekly gross by release week</span></h3>
+        <div class="bo-chart-wrap"><svg id="bo-chart" viewBox="0 0 520 260" preserveAspectRatio="xMidYMid meet"></svg></div>
+        <div class="bo-chart-note" id="bo-note"></div>
+      </div>
+    </div>
+    <div class="prod-controls center-ctl">
+      <button class="btn btn-ghost" id="btn-bo-stop" title="Pull the film from theaters early">⏹ PULL FROM RELEASE</button>
+      <span class="bo-ctl-spacer"></span>
+      <button class="btn btn-primary btn-lg" id="btn-bo-next">⏭ NEXT RELEASE WEEK</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section class="screen" id="screen-results" hidden>
+    <div class="results-wrap">
+      <div class="results-poster">
+        <img id="res-poster" alt="Film poster">
+        <div class="results-grade" id="res-grade">A</div>
+      </div>
+      <div class="results-body">
+        <h2 class="screen-title" id="res-headline">FINANCIALS</h2>
+        <p class="screen-sub" id="res-sub"></p>
+        <table class="pnl-table" id="pnl-table"></table>
+        <div class="results-notes" id="res-notes"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-lg" id="btn-next-film">🎬 MAKE THE NEXT FILM →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GAME OVER ============ -->
+  <section class="screen" id="screen-gameover" hidden>
+    <div class="panel center-panel gameover-panel">
+      <h2 class="screen-title gameover-title">STUDIO CLOSING</h2>
+      <p class="screen-sub" id="go-sub">The bank has sold the lot. The cameras go dark.</p>
+      <div class="go-stats" id="go-stats"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-lg" id="btn-restart">START A NEW STUDIO →</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ MODAL ============ -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h3 id="modal-title">—</h3>
+      <button class="icon-btn" id="modal-x">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<footer class="site-foot">
+  <span>SIM CINEMA DELUXE · modern web edition · a love letter to a 1999 Mac game</span>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/poster.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
