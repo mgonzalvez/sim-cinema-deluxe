@@ -95,6 +95,12 @@ const GAME = (() => {
       if (!b.studio) return false;
       Object.assign(S, b);
       S.filmLog = b.filmLog || [];
+      // migration: old single-buzz saves → dual meters (positive keeps the value)
+      if (S.film && S.film.buzz != null && S.film.buzzPos == null) {
+        S.film.buzzPos = S.film.buzz;
+        S.film.buzzNeg = 0;
+        delete S.film.buzz;
+      }
       S.pendingEvent = null;
       S.eventPool = [];
       return true;
@@ -248,7 +254,7 @@ const GAME = (() => {
       quality: q, castScore, directorScore: dir.score,
       cast: { lead, co, sup, dir },
       social: Math.round((lead.social + co.social + sup.social) / 3),
-      buzz: 0, screened: false, screenScore: 0,
+      buzzPos: 0, buzzNeg: 0, screened: false, screenScore: 0,
       tagline: null, taglineQ: 0,
       poster: null,
       costs: { production: 0, cast: castCost, dev: pScript.devCost, ads: 0, events: 0, other: 0 }
@@ -279,6 +285,7 @@ const GAME = (() => {
   };
 
   G.canRelease = function () { return !!G.S.film && G.totalProduction() >= 99; };
+  G.netBuzz = function () { const f = G.S.film; return f ? f.buzzPos - f.buzzNeg : 0; };
   G.canScreen = function () {
     const f = G.S.film;
     return !!f && !f.screened && G.totalProduction() >= 60 && G.canAfford(0.5);
@@ -300,7 +307,21 @@ const GAME = (() => {
       const target = D.clamp((f.week - start) / span, 0, 1) * 100;
       f.phases[key] = Math.round(Math.max(f.phases[key], Math.min(100, target)));
     }
-    f.buzz = Math.round(f.buzz * 0.97 * 10) / 10;
+    // buzz: two independent meters. Each mean-reverts to a small ambient
+    // baseline (there is always some chatter) with noise around it, so the
+    // internet wanders without ratcheting — at 3%/week decay, any positive
+    // expected increment would accumulate to ~30+ by release. Ads and events
+    // are what actually move the meters.
+    const base = 4;
+    f.buzzPos = Math.round(D.clamp((f.buzzPos - base) * 0.97 + base + D.rand(-1.5, 1.5), 0, 150) * 10) / 10;
+    f.buzzNeg = Math.round(D.clamp((f.buzzNeg - base) * 0.97 + base + D.rand(-1.5, 1.5), 0, 150) * 10) / 10;
+    if (Math.random() < 0.2) {
+      const blip = D.pick(D.OUTSIDE_BUZZ);
+      f.buzzPos = Math.round(D.clamp(f.buzzPos + blip.pos, 0, 150) * 10) / 10;
+      f.buzzNeg = Math.round(D.clamp(f.buzzNeg + blip.neg, 0, 150) * 10) / 10;
+      const net = blip.pos - blip.neg;
+      G.log(blip.text + (net > 0 ? ` Positive buzz +${blip.pos}.` : net < 0 ? ` Negative buzz +${blip.neg}.` : ""), net > 0 ? "good" : net < 0 ? "bad" : "");
+    }
 
     if (G.totalProduction() >= 99) {
       f.phases = { sets: 100, filming: 100, vfx: 100, music: 100 };
@@ -340,9 +361,16 @@ const GAME = (() => {
     if (S.studio.funds < ad.cost && !G.canAfford(ad.cost)) { G.log("Not enough funds or credit for that campaign.", "bad"); return; }
     G.spend(ad.cost);
     f.costs.ads = Math.round((f.costs.ads + ad.cost) * 10) / 10;
-    const gain = Math.round(ad.buzz * (1 + f.social / 200) * 10) / 10;
-    f.buzz = Math.round(D.clamp(f.buzz + gain, 0, 150) * 10) / 10;
-    G.log(`${ad.name}: +${gain} buzz.`, "good");
+    if (ad.neg) {
+      // PR cleanup: the lever for the negative meter
+      const before = f.buzzNeg;
+      f.buzzNeg = Math.max(0, Math.round((f.buzzNeg - ad.neg) * 10) / 10);
+      G.log(`${ad.name}: −${Math.round((before - f.buzzNeg) * 10) / 10} negative buzz.`, "good");
+    } else {
+      const gain = Math.round(ad.buzz * (1 + f.social / 200) * 10) / 10;
+      f.buzzPos = Math.round(D.clamp(f.buzzPos + gain, 0, 150) * 10) / 10;
+      G.log(`${ad.name}: +${gain} positive buzz.`, "good");
+    }
     G.save();
   };
 
@@ -364,7 +392,7 @@ const GAME = (() => {
     G.spend(0.5);
     f.costs.other = Math.round((f.costs.other + 0.5) * 10) / 10;
     f.screened = true;
-    const hype = Math.max(0, (f.buzz / 100) - (f.quality / 100) - 0.5);
+    const hype = Math.max(0, (G.netBuzz() / 100) - (f.quality / 100) - 0.5);
     const score = Math.round(D.clamp(f.quality + f.taglineQ * 2 - hype * 15 + D.rand(-8, 8), 5, 100));
     f.screenScore = score;
     G.log(`Test screening: the audience gives it ${score}/100.`, score >= 70 ? "story" : score < 45 ? "bad" : "");
@@ -378,7 +406,7 @@ const GAME = (() => {
     G.spend(1.5);
     f.costs.other = Math.round((f.costs.other + 1.5) * 10) / 10;
     f.quality = Math.round(D.clamp(f.quality + 8, 5, 100));
-    f.buzz = Math.max(0, Math.round((f.buzz - 10) * 10) / 10);
+    f.buzzPos = Math.max(0, Math.round((f.buzzPos - 10) * 10) / 10);
     f.screenScore = 0;
     G.log("Reshoots completed. The film is sharper; the hype cooled a little.", "good");
     G.save();
@@ -416,10 +444,11 @@ const GAME = (() => {
   G.critique = function () {
     const S = G.S, f = S.film;
     if (!f || f.reviews) return;
-    const r = D.makeReviews(f.quality, f.buzz);
+    const r = D.makeReviews(f.quality, G.netBuzz());
     f.reviews = r;
     const delta = r.avg >= 80 ? 10 : r.avg >= 65 ? 6 : r.avg >= 50 ? 0 : r.avg >= 35 ? -2 : -5;
-    f.buzz = Math.round(D.clamp(f.buzz + delta, 0, 150) * 10) / 10;
+    if (delta > 0) f.buzzPos = Math.round(D.clamp(f.buzzPos + delta, 0, 150) * 10) / 10;
+    else if (delta < 0) f.buzzNeg = Math.round(D.clamp(f.buzzNeg - delta, 0, 150) * 10) / 10;
     G.log(`Advance reviews are in: ${D.criticLabel(r.avg)} (avg ${r.avg}/100). ${delta > 0 ? `Buzz +${delta}.` : delta < 0 ? `Buzz ${delta}.` : "Buzz unchanged."}`, delta >= 5 ? "story" : delta < 0 ? "bad" : "");
     G.save();
   };
@@ -431,7 +460,9 @@ const GAME = (() => {
     G.critique();
     const audience = D.GENRES[f.genre].audience; // reputation boost applied in weekGross
     const R = f.quality / 100;
-    const opening = audience * (1 + 5.5 * (f.buzz / 100)) * (0.55 + 0.55 * R) * D.rand(0.9, 1.1);
+    // net buzz can now genuinely hurt: floored so a scandal can't zero the opening
+    const buzzFactor = Math.max(0.35, 1 + 5.5 * (G.netBuzz() / 100));
+    const opening = audience * buzzFactor * (0.55 + 0.55 * R) * D.rand(0.9, 1.1);
     const legs = D.GENRES[f.genre].legs || 0;
     S.boxoffice = {
       my: { title: f.title, genre: f.genre, studio: S.studio.name, q: R, legs, potential: opening, last: 0, total: 0, critics: f.reviews ? f.reviews.avg : 0 },

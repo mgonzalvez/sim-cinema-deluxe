@@ -292,16 +292,31 @@ const UI = (() => {
     $("#prod-date").textContent = GAME.dateStr();
   }
 
+  function renderBuzzMeter() {
+    const f = GAME.film;
+    if (!f) return;
+    const p = Math.round(f.buzzPos), n = Math.round(f.buzzNeg), net = p - n;
+    $("#buzz-sub").textContent = `buzz net ${net >= 0 ? "+" : "−"}${Math.abs(net)}`;
+    $("#buzz-meter").innerHTML = `
+      <div class="buzz-row"><span class="buzz-label neg">negative</span>
+        <div class="bar buzz-bar"><div class="bar-fill buzz-neg" style="width:${Math.min(100, n / 1.5)}%"></div></div>
+        <span class="buzz-val neg">${n}</span></div>
+      <div class="buzz-row"><span class="buzz-label pos">positive</span>
+        <div class="bar buzz-bar"><div class="bar-fill buzz-pos" style="width:${Math.min(100, p / 1.5)}%"></div></div>
+        <span class="buzz-val pos">${p}</span></div>
+      <div class="buzz-net">${net > 0 ? "word of mouth is on your side" : net < 0 ? "the internet is grumbling — the opening will feel it" : "the water is calm"} · both fade ~3%/week</div>`;
+  }
+
   function renderAds() {
     const f = GAME.film;
     if (!f) return;
-    $("#ad-buzz").textContent = "buzz " + Math.round(f.buzz);
+    renderBuzzMeter();
     $("#ad-list").innerHTML = D.ADS.map((a) => {
       const unlocked = a.unlock(GAME);
       const affordable = GAME.canAfford(a.cost);
       const gain = Math.round(a.buzz * (1 + f.social / 200) * 10) / 10;
       return `<li class="ad-item ${unlocked ? "" : "locked"}">
-        <div class="ad-name">${a.name}<small>${a.sub} · +${gain} buzz</small></div>
+        <div class="ad-name">${a.name}<small>${a.sub} · +${gain} positive buzz</small></div>
         <span class="ad-cost">${M(a.cost)}</span>
         <button data-ad="${a.id}" ${!unlocked || !affordable ? "disabled" : ""}>${unlocked ? "BUY" : "🔒"}</button>
       </li>`;
@@ -684,7 +699,7 @@ const UI = (() => {
         1. <b>Development</b> — pick one of three scripts; each rewrite week costs $0.3M for +7 script quality.<br>
         2. <b>Budget</b> — aim near the ideal. Under hurts quality; way over wastes money.<br>
         3. <b>Casting</b> — stars bring draw and social reach, but big fees.<br>
-        4. <b>Production</b> — pass weeks, buy ads (buzz decays ~3%/week), resolve on-set events.<br>
+        4. <b>Production</b> — pass weeks, buy ads, and manage <b>two buzz meters</b>: positive (green) and negative (red). Both decay ~3%/week, drift on their own, and events (gaffes, scandals, heartwarming moments) can move either or both. What the opening weekend sees is the difference.<br>
         5. <b>Release</b> — four critics weigh in with advance reviews (their consensus shifts buzz), then track your film on the Top 10 until it drops out.
       </div>
       <p style="margin-top:14px">💡 <b>Test screening</b> (60%+ complete, $0.5M) scores the film; under 55 you can reshoot for $1.5M (+8 quality).</p>

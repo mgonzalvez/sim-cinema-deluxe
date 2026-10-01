@@ -49,8 +49,15 @@ bump the key if the shape changes).
 - Opening = `audience * (1 + 5.5*buzz/100) * (0.55 + 0.55*R) * rand(0.9,1.1)`;
   weekly decay `0.62 + 0.32*R + genre.legs` (clamped 0.5–0.9); curve ends at
   gross < $1M or week 14.
-- Buzz decays ×0.97/week; ads give +4..+14 buzz ×(1+social/200) (see `DATA.ADS`);
-  critics (`GAME.critique`) shift buzz +10/+6/0/−2/−5 by consensus on release.
+- **Dual buzz meters** (`f.buzzPos`/`f.buzzNeg`, 0–150 each): each mean-reverts to
+  an ambient baseline of ~4 with ±1.5 noise, plus 20%/week chance of an outside
+  blip (`DATA.OUTSIDE_BUZZ`) — the drift must *not* carry a positive expected
+  increment (3%/week decay ratchets it to ~30+ and crushes every opening).
+  Ads feed only positive (+4..+14 ×(1+social/200)); **PR Cleanup** is the lever
+  for the negative meter (−12, unlocks at buzzNeg ≥ 10); events can move either
+  (scandals often both). Net = pos − neg; opening buzz factor
+  `max(0.35, 1 + 5.5*net/100)`; critics (`GAME.critique`) shift ±5..10 by
+  consensus on release. Old saves with a single `buzz` are migrated on load.
 - Production: `totalWeeks = clamp(round(3 + budget/4), 4, 12)`; four phases
   with genre-dependent schedule windows (`G.phaseProfile`).
 
@@ -70,7 +77,9 @@ bump the key if the shape changes).
   advance reviews — 4 critics with individual biases (`D.makeReviews`) weigh in
   on release (consensus shifts buzz ±5..10 before opening); message feed
   hierarchy ("story"/"gold" kinds → big ★ gold cards, regular dimmed) so
-  production weeks read as a visible procedural story.
+  production weeks read as a visible procedural story;
+  dual buzz meters (positive/negative with drift, outside blips, PR Cleanup
+  lever) — see the buzz bullet under Key game constants before touching it.
 - **Balance note**: the critic step is the newest risk axis; after adding it,
   strong play measured ≈ 85% hit films / ~75–80% of 8-film careers survive
   (was 87%/93%) — still within design intent (strong play wins, sloppy loses).

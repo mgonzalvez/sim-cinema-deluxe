@@ -63,8 +63,9 @@ for (let c = 0; c < CAREERS; c++) {
           G.release();
         } else {
           const f = G.film;
-          if (f.buzz < 65 && G.canAfford(4)) G.buyAd("social");
-          if (f.buzz < 85 && f.phases.filming >= 45 && G.canAfford(6)) G.buyAd("trailer");
+          if (f.buzzPos < 65 && G.canAfford(4)) G.buyAd("social");
+          if (f.buzzPos < 85 && f.phases.filming >= 45 && G.canAfford(6)) G.buyAd("trailer");
+          if (f.buzzNeg > 20 && G.canAfford(1.2)) G.buyAd("pr");
           G.passWeek();
         }
         break;

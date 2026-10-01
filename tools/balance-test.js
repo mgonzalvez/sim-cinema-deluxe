@@ -167,7 +167,7 @@ if (process.argv.includes("--skilled")) {
           } else {
             // advertise while funds allow
             const f = G.film;
-            if (f.buzz < 65 && G.canAfford(4)) G.buyAd("social");
+            if (f.buzzPos < 65 && G.canAfford(4)) G.buyAd("social");
             if (f.buzz < 85 && f.phases.filming >= 45 && G.canAfford(6)) G.buyAd("trailer");
             G.passWeek();
           }

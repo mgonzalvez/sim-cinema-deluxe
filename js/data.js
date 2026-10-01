@@ -204,6 +204,16 @@ const DATA = (() => {
     ]
   };
 
+  // ---------- outside buzz: the internet, acting without your permission ----------
+  const OUTSIDE_BUZZ = [
+    { pos: 6, neg: 0, text: "A 30-second clip from the film is trending online." },
+    { pos: 5, neg: 0, text: "A film critic spots the lead on a late-night show and can't stop smiling." },
+    { pos: 4, neg: 2, text: "The poster gets remixed everywhere — including as a hostile meme." },
+    { pos: 3, neg: 4, text: "An out-of-context scene is being quoted in the papers, both ways." },
+    { pos: 0, neg: 5, text: "A rival studio's PR team plants a rumor that the film was made in a weekend." },
+    { pos: 0, neg: 6, text: "A fan account misquotes the logline, and the internet believes it." }
+  ];
+
   // ---------- advance reviews ----------
   const CRITICS = [
     { name: "Roger Ebbs",       outlet: "The Daily Reel",   bias: 9 },
@@ -261,7 +271,8 @@ const DATA = (() => {
     { id: "social",  name: "Social Media Push",    sub: "clips, memes, red carpet", cost: 0.8, buzz: 9,  unlock: () => true },
     { id: "press",   name: "Magazine / Press Ads", sub: "feature + print",          cost: 0.6, buzz: 6.5, unlock: () => true },
     { id: "billboard", name: "Billboards",         sub: "highways + suburbs",       cost: 0.5, buzz: 5,  unlock: () => true },
-    { id: "poster",  name: "Poster Campaign",      sub: "cities & campuses",        cost: 0.4, buzz: 4,  unlock: () => true }
+    { id: "poster",  name: "Poster Campaign",      sub: "cities & campuses",        cost: 0.4, buzz: 4,  unlock: () => true },
+    { id: "pr",      name: "PR Cleanup",           sub: "spin the sour stories",    cost: 1.2, buzz: 0,  neg: 12, unlock: (g) => g.film.buzzNeg >= 10 }
   ];
 
   // ---------- production events ----------
@@ -272,7 +283,7 @@ const DATA = (() => {
       choices: [
         { label: "Bring in certified riggers", cost: 1.2, detail: "Safe. Boring, in a good way.", run: (g) => { g.log("Riggers secured the rig. The crane is now boring. Production continues.", "good"); } },
         { label: "Shoot it anyway", cost: 0, detail: "Free. The crane is singing a little louder now.", run: (g) => {
-          if (Math.random() < 0.45) { g.film.quality = clamp(g.film.quality - 8, 5, 100); g.film.buzz = Math.max(0, g.film.buzz - 5); g.log("A stuntman sprained his wrist on camera. The footage is shaky and the tabloids are having a very good afternoon. Quality −8, buzz −5.", "bad"); }
+          if (Math.random() < 0.45) { g.film.quality = clamp(g.film.quality - 8, 5, 100); g.film.buzzNeg = clamp(g.film.buzzNeg + 6, 0, 150); g.log("A stuntman sprained his wrist on camera. The footage is shaky and the tabloids are having a very good afternoon. Quality −8, negative buzz +6.", "bad"); }
           else g.log("The stunt landed clean. The coordinator is still shaking, but the take is gold.", "good");
         } }
       ]
@@ -313,9 +324,9 @@ const DATA = (() => {
       id: "tabloid", title: "The Cab Photo",
       text: "A rag has a photo of the lead and co-lead 'sharing a cab'. The story is running out of control, and everyone is very interested in what you do about it.",
       choices: [
-        { label: "Release a spin statement", cost: 0.5, detail: "Buzz +6 — they love a scandal.", run: (g) => { g.film.buzz = clamp(g.film.buzz + 6, 0, 150); g.log("'Just coworkers' — it works. Buzz +6. Hollywood runs on this.", "gold"); } },
+        { label: "Release a spin statement", cost: 0.5, detail: "They love a scandal. Positive +6, negative +2.", run: (g) => { g.film.buzzPos = clamp(g.film.buzzPos + 6, 0, 150); g.film.buzzNeg = clamp(g.film.buzzNeg + 2, 0, 150); g.log("'Just coworkers' — it works. Positive buzz +6, and a little negative +2. Hollywood runs on this.", "gold"); } },
         { label: "Say nothing", cost: 0, detail: "Let it die... or grow.", run: (g) => {
-          if (Math.random() < 0.5) { g.film.buzz = clamp(g.film.buzz + 4, 0, 150); g.log("The rumor peaked on its own. Buzz +4.", "good"); }
+          if (Math.random() < 0.5) { g.film.buzzPos = clamp(g.film.buzzPos + 4, 0, 150); g.log("The rumor peaked on its own. Positive buzz +4.", "good"); }
           else g.log("The story fizzled. The tabloid is now covering a reality show.", "good");
         } }
       ]
@@ -330,7 +341,7 @@ const DATA = (() => {
           g.film.quality = clamp(g.film.quality + bonus, 5, 100);
           g.log("You hang up on the franchise pitch. The crew notices. The film sharpens.", "gold");
         } },
-        { label: "Add the CGI sequel hook", cost: 0.7, detail: "Buzz +4, quality −3, the bank is happy.", run: (g) => { g.film.quality = clamp(g.film.quality - 3, 5, 100); g.film.buzz = clamp(g.film.buzz + 4, 0, 150); g.log("The post-credits shot of a hand reaching out of the ocean is doing something to the test-audience's eyes.", "bad"); } }
+        { label: "Add the CGI sequel hook", cost: 0.7, detail: "Positive +4, negative +4, quality −3.", run: (g) => { g.film.quality = clamp(g.film.quality - 3, 5, 100); g.film.buzzPos = clamp(g.film.buzzPos + 4, 0, 150); g.film.buzzNeg = clamp(g.film.buzzNeg + 4, 0, 150); g.log("The post-credits shot of a hand reaching out of the ocean is doing something to the test-audience's eyes. The internet is doing something else entirely. Quality −3, buzz +4 and −4.", "bad"); } }
       ]
     },
     {
@@ -378,10 +389,40 @@ const DATA = (() => {
       id: "score-leak", title: "The Score Leak",
       text: "Someone has uploaded a 90-second clip of the score. It is lovely. It is also the entire third act, compressed into 90 seconds.",
       choices: [
-        { label: "Lean into it", cost: 0.5, detail: "Let the mystery marinate. Buzz +7.", run: (g) => { g.film.buzz = clamp(g.film.buzz + 7, 0, 150); g.log("The 90 seconds is everywhere now, and everyone wants to know how the movie ends. Buzz +7.", "gold"); } },
+        { label: "Lean into it", cost: 0.5, detail: "Let the mystery marinate. Positive +7.", run: (g) => { g.film.buzzPos = clamp(g.film.buzzPos + 7, 0, 150); g.log("The 90 seconds is everywhere now, and everyone wants to know how the movie ends. Positive buzz +7.", "gold"); } },
         { label: "Request a takedown", cost: 0.6, detail: "Legal is confident. Legal is usually confident.", run: (g) => {
-          if (Math.random() < 0.5) { g.film.buzz = clamp(g.film.buzz + 3, 0, 150); g.log("The takedown works and the mystery survives to opening weekend. Buzz +3.", "good"); }
-          else { g.film.buzz = Math.max(0, g.film.buzz - 4); g.log("The file outlives every takedown. The mystery is gone, but the film is fine. Buzz −4.", "bad"); }
+          if (Math.random() < 0.5) { g.film.buzzPos = clamp(g.film.buzzPos + 3, 0, 150); g.log("The takedown works and the mystery survives to opening weekend. Positive buzz +3.", "good"); }
+          else { g.film.buzzNeg = clamp(g.film.buzzNeg + 4, 0, 150); g.log("The file outlives every takedown, and the discussion turns sour. Negative buzz +4. The film is fine.", "bad"); }
+        } }
+      ]
+    },
+    {
+      id: "red-carpet", title: "The Red Carpet Slip",
+      text: "Your lead is asked about the film and, uncharacteristically, says 'my agent made me do the third act'. The clip is everywhere within the hour.",
+      choices: [
+        { label: "Hold a humble press conference", cost: 0.8, detail: "The apology lands. Negative buzz −8.", run: (g) => {
+          g.film.buzzNeg = Math.max(0, Math.round((g.film.buzzNeg - 8) * 10) / 10);
+          g.log("The apology is sincere, a little long, and it lands. Negative buzz −8.", "good");
+        } },
+        { label: "Let the clip run", cost: 0, detail: "Charming chaos: negative +10, positive +8.", run: (g) => {
+          g.film.buzzNeg = clamp(g.film.buzzNeg + 10, 0, 150);
+          g.film.buzzPos = clamp(g.film.buzzPos + 8, 0, 150);
+          g.log("Unapologetic is a brand these days. The clip becomes a meme and people love it — some don't. Negative +10, positive +8.", "gold");
+        } }
+      ]
+    },
+    {
+      id: "tzm", title: "The Weekend Photo",
+      text: "A celebrity site has published a photo of your lead doing something unscripted over the weekend. It is, depending on who you ask, either a scandal or a masterpiece.",
+      choices: [
+        { label: "Embrace the chaos", cost: 0, detail: "Positive +12, negative +10. Both.", run: (g) => {
+          g.film.buzzPos = clamp(g.film.buzzPos + 12, 0, 150);
+          g.film.buzzNeg = clamp(g.film.buzzNeg + 10, 0, 150);
+          g.log("The studio's statement: 'They're an artist.' The positive buzz is enormous. So is the negative.", "gold");
+        } },
+        { label: "Send the lawyers", cost: 1.2, detail: "The photo comes down. Negative buzz −6.", run: (g) => {
+          g.film.buzzNeg = Math.max(0, Math.round((g.film.buzzNeg - 6) * 10) / 10);
+          g.log("The photo is gone, the lawyers are billable, and the story mostly dies. Negative buzz −6.", "good");
         } }
       ]
     }
@@ -429,7 +470,7 @@ const DATA = (() => {
     "Documentary": ["Mill", "Strike", "Ballot", "River", "Ledger", "Front Porch"]
   };
 
-  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, CRITICS, REVIEW_QUOTES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS };
+  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS };
 })();
 
 // ---------- procedural generators ----------

@@ -285,6 +285,17 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 .phase-row .ph-pct { color: var(--muted); font-weight: 700; }
 .bar { height: 8px; background: var(--bg2); border-radius: 999px; overflow: hidden; border: 1px solid var(--line-soft); }
 .bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #b8860b, var(--gold)); border-radius: 999px; transition: width 0.5s ease; }
+/* dual buzz meters */
+.buzz-meter { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 10px; }
+.buzz-row { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.buzz-row .buzz-label { width: 62px; }
+.buzz-row .buzz-bar { flex: 1; }
+.buzz-row .buzz-val { width: 30px; text-align: right; font-weight: 700; }
+.buzz-row .buzz-val.neg, .buzz-row .buzz-label.neg { color: var(--red-soft); }
+.buzz-row .buzz-val.pos, .buzz-row .buzz-label.pos { color: var(--green); }
+.bar-fill.buzz-neg { background: linear-gradient(90deg, #7a2a24, var(--red-soft)); }
+.bar-fill.buzz-pos { background: linear-gradient(90deg, #2a9d64, var(--green)); }
+.buzz-net { font-size: 11.5px; color: var(--muted); letter-spacing: 0.2px; }
 .bar-fill.done { background: linear-gradient(90deg, #2a9d64, var(--green)); }
 
 .prod-quality-line { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 12px; color: var(--muted); }

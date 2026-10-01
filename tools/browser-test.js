@@ -132,7 +132,7 @@ const DRIVER = `
     await sleep(500);
     ok("casting");
 
-    if ($$("#ad-list .ad-item").length !== 6) fail("ad list");
+    if ($$("#ad-list .ad-item").length !== 7) fail("ad list");
     if ($$("#phase-list .phase-row").length !== 4) fail("phase list");
     if (!$("#prod-poster").src) fail("no production poster");
     if (!$("#messages").children.length) fail("no messages");

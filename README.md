@@ -67,17 +67,22 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
    takes.
 4. **Casting & crew** — lead, co-lead, supporting, and director. Big names bring
    audience draw and social reach; unknowns are cheap and risky.
-5. **Production (the weekly loop)** — each week: buy advertising (buzz decays
-   slowly, ads rebuild it), pass the week, and resolve random on-set events
-   (stunt rigs, a burrito, tabloids, catering memos, the method, a 4,000-page
-   fan wiki…). The message feed tells the story of your production — the big
-   gold ★ entries are the moments that mattered.
+5. **Production (the weekly loop)** — each week: manage your **two buzz
+   meters** (positive green, negative red — both fade, both drift, and the
+   internet does things on its own), buy advertising (PR Cleanup deflates the
+   red one), pass the week, and resolve random on-set events (stunt rigs, a
+   burrito, tabloids, a red-carpet gaffe, a weekend photo, catering memos, the
+   method, a 4,000-page fan wiki…). The message feed tells the story of your
+   production — the big gold ★ entries are the moments that mattered.
 6. **Test screen** (60%+ complete, $0.5M) — the audience scores the film;
    a bad score offers a $1.5M reshoot.
 7. **Release** (100% complete) — four critics publish advance reviews first;
    their consensus (raves to *incendiarily negative*) shifts the buzz that
-   carries into the opening weekend. Then your film opens on the Top-10 chart
-   against nine rival studio releases. Track the weekly curve until it drops out.
+   carries into the opening weekend. What the opening weekend actually sees is
+   **positive buzz minus negative buzz** — a beloved film with a festering
+   scandal opens smaller than a clean one. Then your film opens on the Top-10
+   chart against nine rival studio releases. Track the weekly curve until it
+   drops out.
 8. **Results** — gross vs. every cost (production, cast, development, ads,
    events, debt), a grade, and a reputation change. Make the next film — or,
    if the credit line runs dry, the bank repossesses the lot.
