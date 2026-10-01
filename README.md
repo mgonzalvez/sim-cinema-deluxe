@@ -16,6 +16,7 @@ Features of the original (from the v2.5 release notes and archives at
 Info-Mac, Applefritter, MacTrove, and Macintosh Repository):
 
 - Box Office Top-Ten list the player's film competes on
+- Advance reviews — critics weigh in on the film before it opens
 - Test-screen the film before release
 - Explicit budget control
 - A more detailed development phase
@@ -68,12 +69,15 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
    audience draw and social reach; unknowns are cheap and risky.
 5. **Production (the weekly loop)** — each week: buy advertising (buzz decays
    slowly, ads rebuild it), pass the week, and resolve random on-set events
-   (stunt rigs, sick leads, tabloids, studio calls…). Watch the four production
-   phases fill: sets/props, filming/editing, visual effects, music.
+   (stunt rigs, a burrito, tabloids, catering memos, the method, a 4,000-page
+   fan wiki…). The message feed tells the story of your production — the big
+   gold ★ entries are the moments that mattered.
 6. **Test screen** (60%+ complete, $0.5M) — the audience scores the film;
    a bad score offers a $1.5M reshoot.
-7. **Release** (100% complete) — your film opens on the Top-10 chart against
-   nine rival studio releases. Track the weekly curve until it drops out.
+7. **Release** (100% complete) — four critics publish advance reviews first;
+   their consensus (raves to *incendiarily negative*) shifts the buzz that
+   carries into the opening weekend. Then your film opens on the Top-10 chart
+   against nine rival studio releases. Track the weekly curve until it drops out.
 8. **Results** — gross vs. every cost (production, cast, development, ads,
    events, debt), a grade, and a reputation change. Make the next film — or,
    if the credit line runs dry, the bank repossesses the lot.
@@ -85,7 +89,11 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
   limit ends the game. This is how a small studio makes a big picture.
 - **Genres have personalities**: Action opens hot but decays fast; Dramas and
   Documentaries open small but have "legs"; Animation has family audiences.
-- **Everything is procedural**: titles, cast, taglines, rivals, even the
-  posters are generated. No two careers look alike.
+- **Everything is procedural**: titles, cast, taglines, rivals, critics, even
+  the posters (with their corner stickers and tiny credit blocks) are generated.
+  No two careers look alike.
+- **The tone is loving, not mean**: a lot of the cast and crew are affectionate
+  parodies of real film-industry figures (all fictional names), and the events,
+  taglines, and critics lean into the industry's best jokes.
 
 See `AGENTS.md` for architecture, current status, and next steps.

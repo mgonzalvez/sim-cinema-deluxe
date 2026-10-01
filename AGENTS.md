@@ -17,21 +17,24 @@ research background and player-facing docs.
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
 | `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
 | `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API |
-| `js/ui.js` | UI layer: screen router, all 9 screens, modals (event/tagline/screening/help), autoplay timers, Top-10 table + SVG curve, save/continue |
+| `js/ui.js` | UI layer: screen router, all 9 screens, modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed |
 | `tools/balance-test.js` | Headless smoke + 300-film random + 200-film skilled simulations (Node VM) |
 | `tools/career-test.js` | 100 careers × 8 films with a strong strategy |
-| `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening modals, terminate + bankruptcy + game-over branches, save/continue across a page reload. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed) |
+| `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening/reviews modals, terminate + bankruptcy + game-over branches, save/continue across a page reload. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed) |
 
 ### State machine (game.js)
 
 `title → studio → script → budget → casting → production ⇄(event modals) →
 boxoffice → results → script …` with `gameover` reachable from anywhere.
+Release keeps `state: "production"` while the critic-reviews modal is open;
+`GAME.release()` then flips to `boxoffice` (the UI drives the two steps
+separately: `GAME.critique()` → modal → `GAME.release()`).
 
 `GAME.S` holds mutable state; the flat API is flattened getters
 (`GAME.state`, `GAME.film`, `GAME.studio`, …) plus actions: `newStudio`,
 `selectScript`, `setBudget`/`confirmBudget`, `pickTalent`/`confirmCasting`,
 `passWeek`, `resolveEvent`, `buyAd`, `setTagline`, `testScreen`, `reshoot`,
-`release`, `nextBoWeek`, `finishBoxOffice`, `nextFilm`, `terminateFilm`,
+`critique`, `release`, `nextBoWeek`, `finishBoxOffice`, `nextFilm`, `terminateFilm`,
 `save`/`load`/`hasSave`/`clearSave`, `canAfford`, `creditLimit`.
 
 Save format: localStorage key `simcinema_save_v1` (whole state blob; safe to
@@ -46,7 +49,8 @@ bump the key if the shape changes).
 - Opening = `audience * (1 + 5.5*buzz/100) * (0.55 + 0.55*R) * rand(0.9,1.1)`;
   weekly decay `0.62 + 0.32*R + genre.legs` (clamped 0.5–0.9); curve ends at
   gross < $1M or week 14.
-- Buzz decays ×0.97/week; ads give +7..+25 buzz (see `DATA.ADS`).
+- Buzz decays ×0.97/week; ads give +4..+14 buzz ×(1+social/200) (see `DATA.ADS`);
+  critics (`GAME.critique`) shift buzz +10/+6/0/−2/−5 by consensus on release.
 - Production: `totalWeeks = clamp(round(3 + budget/4), 4, 12)`; four phases
   with genre-dependent schedule windows (`G.phaseProfile`).
 
@@ -93,5 +97,5 @@ bump the key if the shape changes).
   `node tools/balance-test.js --smoke && node tools/career-test.js`.
 - Keep browser test green after any ui.js/index.html/styles.css change:
   `node tools/browser-test.js` (drives the real UI in headless Chrome;
-  `PHASE=production|boxoffice|script|casting|results|title` captures a
+  `PHASE=production|boxoffice|script|casting|reviews|results|title` captures a
   screenshot of that screen and exits).
