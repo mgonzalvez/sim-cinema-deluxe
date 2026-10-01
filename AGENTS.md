@@ -55,9 +55,14 @@ bump the key if the shape changes).
 - **Done**: research; all data/audio/poster/simulation code; headless tests;
   balance tuning (strong play ≈ 87% profitable films, 93% of 8-film careers
   survive; sloppy play loses and can go bankrupt — verified via `tools/`);
-  `js/ui.js` (complete UI layer, ~1100 lines); browser verification of every
-  screen and flow via `tools/browser-test.js` (title, studio, script, budget,
-  casting, production, box office, results, game over, help, save/continue).
+  `js/ui.js` (complete UI layer); browser verification of every screen and
+  flow via `tools/browser-test.js` (title, studio, script, budget, casting,
+  production, box office, results, game over, help, save/continue);
+  git repo + initial push (`mgonzalvez`, main/gh-pages);
+  career features: `filmLog` (up to 12 films, incl. cancelled) persisted in the
+  save blob; `simcinema_legacy_v1` all-time-best career record ("hall of fame"
+  line on title screen, "CAREER" note on results, full recap table on game
+  over).
 - **Note**: `styles.css` needs `[hidden] { display: none !important; }` —
   author `display` rules (`.topbar`, `.modal-backdrop`) override the UA
   stylesheet's `[hidden]` rule, so the topbar/modal render on every screen
@@ -65,10 +70,9 @@ bump the key if the shape changes).
 
 ## Next Steps (ordered)
 
-1. ~~Write `js/ui.js`~~ done; ~~browser-verify every screen and flow~~ done.
-2. `git init`, `.gitignore` (`.DS_Store`), initial commit; push per portfolio
-   convention (`git@github.com:mgonzalvez/<repo>.git`, gh-pages).
-3. Optional polish: dedupe actor quips/director names, persist box-office
+1. ~~UI layer + browser verification~~ done; ~~git init + push~~ done;
+   ~~career log + hall of fame + game-over recap~~ done (commit 396d44a).
+2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass.
 
 ## Conventions
