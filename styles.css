@@ -352,6 +352,12 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 .pnl-table .neg { color: var(--red-soft); }
 .pnl-table .pos { color: var(--green); }
 .results-notes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.res-note.career-note .chips { display: inline-flex; gap: 4px; margin-left: 10px; vertical-align: middle; }
+.chip {
+  display: inline-block; font-family: var(--font-display); font-size: 12px; letter-spacing: 1px;
+  color: var(--gold-soft); border: 1px solid rgba(240, 180, 41, 0.4);
+  border-radius: 5px; padding: 1px 6px; background: rgba(240, 180, 41, 0.07);
+}
 .res-note { background: var(--bg2); border: 1px solid var(--line-soft); border-radius: 8px; padding: 10px 14px; font-size: 13px; }
 .res-note.award { border-color: rgba(240, 180, 41, 0.5); background: rgba(240, 180, 41, 0.08); color: var(--gold-soft); font-weight: 700; }
 
@@ -359,6 +365,12 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 .gameover-panel { text-align: center; }
 .gameover-title { color: var(--red-soft); justify-content: center; }
 .go-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 20px 0; }
+.go-recap { margin: 4px auto 8px; max-width: 640px; text-align: left; }
+.go-recap .pnl-table { font-size: 12.5px; }
+.go-recap .go-head td { color: var(--muted); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+.go-recap .go-year { color: var(--muted); font-size: 11px; }
+.go-recap .cut-tag { color: var(--red-soft); font-size: 10px; font-weight: 700; letter-spacing: 1px; border: 1px solid rgba(226, 72, 61, 0.5); border-radius: 4px; padding: 1px 5px; }
+#ho-line { color: var(--gold-soft); letter-spacing: 1px; font-size: 12px; text-transform: uppercase; }
 .go-stat { background: var(--bg2); border: 1px solid var(--line-soft); border-radius: 8px; padding: 12px; }
 .go-stat .k { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
 .go-stat .v { font-family: var(--font-display); font-size: 28px; color: var(--text); letter-spacing: 1px; }

@@ -205,6 +205,7 @@ const DRIVER = `
     const pnl = $("#pnl-table").innerHTML;
     if (!pnl.includes("PROFIT") && !pnl.includes("LOSS")) fail("no pnl total");
     ok("box office + results (" + g2 + " weeks)");
+    if (!$("#res-notes").innerHTML.includes("CAREER")) fail("no career note");
     if (stopAt("results")) return stopAt("results");
 
     $("#btn-help").click();
@@ -219,6 +220,8 @@ const DRIVER = `
       $("#btn-next-film").click();
       if (GAME.state !== "gameover") fail("expected gameover: " + GAME.state);
       if (!$("#go-stats").children.length) fail("no go stats");
+      if (!$("#go-films tr")) fail("no career recap");
+      if (stopAt("gameover")) return stopAt("gameover");
       $("#btn-restart").click();
       if (GAME.state !== "title") fail("restart: " + GAME.state);
       ok("bankruptcy -> gameover -> restart");
@@ -253,6 +256,8 @@ const DRIVER = `
         if (GAME.state !== "script" && GAME.state !== "gameover") fail("terminate: " + GAME.state);
         if (GAME.state === "gameover") {
           if (!$("#go-stats").children.length) fail("no go stats");
+          if (!$("#go-films tr")) fail("no career recap");
+          if (stopAt("gameover")) return stopAt("gameover");
           $("#btn-restart").click();
           if (GAME.state !== "title") fail("restart: " + GAME.state);
           ok("terminate -> bankruptcy -> restart");
@@ -262,6 +267,8 @@ const DRIVER = `
         }
       } else if (GAME.state === "gameover") {
         if (!$("#go-stats").children.length) fail("no go stats");
+        if (!$("#go-films tr")) fail("no career recap");
+        if (stopAt("gameover")) return stopAt("gameover");
         $("#btn-restart").click();
         if (GAME.state !== "title") fail("restart: " + GAME.state);
         ok("gameover + restart (bank ran dry on film 2)");
@@ -282,7 +289,8 @@ const DRIVER = `
 
     return JSON.stringify({ pass: true, log, branch, funds: GAME.studio ? GAME.studio.funds : null, films: GAME.studio ? GAME.studio.films : 0, rep: GAME.studio ? GAME.studio.reputation : 0 });
   } catch (e) {
-    return JSON.stringify({ pass: false, error: e.message, log, state: GAME.state });
+    const st = (typeof GAME !== "undefined" && GAME.state) || "?";
+    return JSON.stringify({ pass: false, error: e.message, log, state: st });
   }
 })();
 `;
@@ -295,6 +303,9 @@ const DRIVER_CONTINUE = `
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     await sleep(600);
+    const leg = GAME.legacy();
+    if (!leg || leg.films < 1) throw new Error("legacy missing after career: " + JSON.stringify(leg));
+    if (document.getElementById("ho-line").hidden || !document.getElementById("ho-line").textContent.trim()) throw new Error("ho-line not shown on title");
     if (document.getElementById("btn-continue").hidden) throw new Error("continue hidden");
     document.getElementById("btn-continue").click();
     await sleep(300);

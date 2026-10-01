@@ -8,6 +8,7 @@
 const GAME = (() => {
   const D = DATA;
   const SAVE_KEY = "simcinema_save_v1";
+  const LEGACY_KEY = "simcinema_legacy_v1";
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   // ---------- mutable state ----------
@@ -24,6 +25,7 @@ const GAME = (() => {
     messages: [],
     boxoffice: null,          // { my, rivals[], week, done }
     lastFilmSummary: null,
+    filmLog: [],              // this career's finished/terminated films
     pendingEvent: null,       // event object awaiting a choice
     eventPool: [],            // shuffled event indices for this production
     gameOverReason: ""
@@ -68,6 +70,7 @@ const GAME = (() => {
     S.film = null;
     S.boxoffice = null;
     S.lastFilmSummary = null;
+    S.filmLog = [];
     S.state = "script";
     log(`The ${S.studio.name} lot opens with $15M and a dream.`, "gold");
     offerScripts();
@@ -79,7 +82,7 @@ const GAME = (() => {
       const blob = { studio: S.studio, state: S.state, date: S.date, messages: S.messages,
         scriptOptions: S.scriptOptions, selectedScript: S.selectedScript, rewrites: S.rewrites,
         budget: S.budget, castOptions: S.castOptions, castPicks: S.castPicks, film: S.film,
-        boxoffice: S.boxoffice, lastFilmSummary: S.lastFilmSummary };
+        boxoffice: S.boxoffice, lastFilmSummary: S.lastFilmSummary, filmLog: S.filmLog };
       localStorage.setItem(SAVE_KEY, JSON.stringify(blob));
     } catch (e) { /* storage full or unavailable — ignore */ }
   }
@@ -91,6 +94,7 @@ const GAME = (() => {
       const b = JSON.parse(raw);
       if (!b.studio) return false;
       Object.assign(S, b);
+      S.filmLog = b.filmLog || [];
       S.pendingEvent = null;
       S.eventPool = [];
       return true;
@@ -99,6 +103,26 @@ const GAME = (() => {
 
   function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
+  // ---------- persistent career record (hall of fame) ----------
+  function legacy() {
+    try {
+      const raw = localStorage.getItem(LEGACY_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function bumpLegacy() {
+    const log = S.filmLog || [];
+    if (!S.studio || !log.length) return;
+    const profit = Math.round(log.reduce((s, f) => s + (f.profit || 0), 0) * 10) / 10;
+    const best = log.reduce((a, f) => (f.gross || 0) > (a.gross || 0) ? f : a, { gross: 0 });
+    const rec = { films: log.length, profit, studio: S.studio.name,
+      bestFilm: { t: best.t, g: best.gross }, year: S.date.year };
+    const L = legacy();
+    if (!L || rec.films > L.films || (rec.films === L.films && rec.profit > L.profit)) {
+      try { localStorage.setItem(LEGACY_KEY, JSON.stringify(rec)); } catch (e) { /* full */ }
+    }
+  }
 
   // ============================================================
   // PHASE 1 — SCRIPT / DEVELOPMENT
@@ -170,6 +194,7 @@ const GAME = (() => {
 
   return { S, newStudio, save, load, hasSave, clearSave, offerScripts, setRewrites, confirmScript,
     setBudget, budgetFactor, projectedQuality, productionWeeks, confirmBudget, dateStr, addDays, log, spend, weeklyProdCost, creditLimit, canAfford,
+    legacy, bumpLegacy,
     _internal: { D } };
 })();
 
@@ -362,12 +387,20 @@ const GAME = (() => {
   G.terminateFilm = function () {
     const S = G.S;
     if (!S.film) return;
+    const spent = Math.round((S.film.costs.production + S.film.costs.cast + S.film.costs.dev + S.film.costs.ads + S.film.costs.events + S.film.costs.other) * 10) / 10;
     G.log(`You pulled the plug on "${S.film.title}". Every dollar spent on it is gone.`, "bad");
+    G.logFilm(S.film, { cancelled: true, spent });
     S.film = null;
     S.pendingEvent = null;
     S.state = "script";
     G.offerScripts();
     G.save();
+  };
+
+  // shared helper: append a finished/terminated film to the career log (capped)
+  G.logFilm = function (f, extra) {
+    G.S.filmLog.push({ t: f.title, g: f.genre, q: f.quality, poster: f.poster || null, date: G.dateStr(), y: G.S.date.year, ...extra });
+    if (G.S.filmLog.length > 12) G.S.filmLog.shift();
   };
 
 })(GAME);
@@ -447,9 +480,11 @@ const GAME = (() => {
       debt: debt, totalCosts: totalCosts, costs: f.costs
     };
     if (debt > 0) G.log(`The studio repays $${debt}M of the credit line from the box office.`, "bad");
+    G.logFilm(f, { gross, profit, grade, weeks: bo.week });
     S.film = null;
     S.boxoffice = null;
     S.state = "results";
+    G.bumpLegacy();
     G.save();
   };
 
@@ -517,6 +552,7 @@ const GAME = (() => {
     G.S.messages = [];
     G.S.lastFilmSummary = null;
     G.S.pendingEvent = null;
+    G.S.filmLog = [];
   };
 
 })(GAME);

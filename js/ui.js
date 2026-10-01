@@ -9,6 +9,7 @@ const UI = (() => {
   const $ = (s) => document.querySelector(s);
   const D = DATA;
   const M = D.money;
+  const sM = (v) => (v < 0 ? "\u2212" + M(-v) : M(v)); // signed money
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   // ---------- fonts: posters need Bebas Neue loaded ----------
@@ -116,6 +117,14 @@ const UI = (() => {
 
   RENDERERS.title = function () {
     $("#btn-continue").hidden = !GAME.hasSave();
+    const leg = GAME.legacy();
+    const ho = $("#ho-line");
+    if (leg) {
+      ho.hidden = false;
+      ho.innerHTML = `HALL OF FAME · ${esc(leg.studio)} · ${leg.films} films · ${sM(leg.profit)} career · best picture: “${esc(leg.bestFilm.t)}”`;
+    } else {
+      ho.hidden = true;
+    }
   };
 
   // ============================================================
@@ -584,6 +593,10 @@ const UI = (() => {
     html += `<tr class="total"><td>${s.profit >= 0 ? "PROFIT" : "LOSS"}</td><td class="${s.profit >= 0 ? "pos" : "neg"}">${s.profit >= 0 ? M(s.profit) : "\u2212" + M(-s.profit)}</td></tr>`;
     $("#pnl-table").innerHTML = html;
     const notes = [];
+    const clog = GAME.S.filmLog || [];
+    const careerProfit = clog.reduce((s, f) => s + (f.profit || 0), 0);
+    const chips = clog.slice(-8).map((f) => `<span class="chip" title="${esc(f.t)}">${f.cancelled ? "CUT" : f.grade}</span>`).join(" ");
+    notes.push(`<div class="res-note career-note">CAREER · film ${clog.length} · ${sM(careerProfit)} total profit <span class="chips">${chips}</span></div>`);
     if (s.grade === "S" || s.grade === "A+") notes.push(`<div class="res-note award">🏆 The industry takes notice.</div>`);
     if (s.screened) notes.push(`<div class="res-note">The test audience scored it ${s.screenScore}/100 before release.</div>`);
     if (s.tagline) notes.push(`<div class="res-note">The tagline ran in the papers: “${esc(s.tagline)}”</div>`);
@@ -607,6 +620,25 @@ const UI = (() => {
       ["Final funds", s ? (s.funds < 0 ? "\u2212" + M(-s.funds) : M(s.funds)) : "—"]
     ];
     $("#go-stats").innerHTML = stats.map(([k, v]) => `<div class="go-stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+    // career recap
+    const log = GAME.S.filmLog || [];
+    const recap = $("#go-films");
+    if (log.length) {
+      const totGross = log.reduce((x, f) => x + (f.gross || 0), 0);
+      const totProfit = log.reduce((x, f) => x + (f.profit || 0), 0);
+      recap.innerHTML = `<table class="pnl-table go-table">
+        <tr class="go-head"><td>Film</td><td class="num">Grade</td><td class="num">Gross</td><td class="num">Profit</td></tr>
+        ${log.map((f, i) => `<tr>
+          <td>${i + 1}. ${esc(f.t)}${f.cancelled ? " <span class='cut-tag'>CUT</span>" : ""}${f.y ? " <span class='go-year'>'" + String(f.y).slice(2) + "</span>" : ""}</td>
+          <td class="num">${f.cancelled ? "—" : f.grade}</td>
+          <td class="num">${f.cancelled ? "—" : M(f.gross)}</td>
+          <td class="num ${f.profit >= 0 ? "pos" : "neg"}">${f.cancelled ? "(spent " + M(f.spent) + ")" : (f.profit >= 0 ? M(f.profit) : "\u2212" + M(-f.profit))}</td>
+        </tr>`).join("")}
+        <tr class="total"><td>CAREER TOTAL</td><td class="num"></td><td class="num">${M(Math.round(totGross * 10) / 10)}</td><td class="num ${totProfit >= 0 ? "pos" : "neg"}">${totProfit >= 0 ? M(totProfit) : "\u2212" + M(-totProfit)}</td></tr>
+      </table>`;
+    } else {
+      recap.innerHTML = "";
+    }
     SFX.play.bad();
   };
 
