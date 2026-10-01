@@ -11,9 +11,9 @@ research background and player-facing docs.
 
 | File | Role |
 |---|---|
-| `index.html` | All 9 screens (title, studio, script, budget, casting, production, box office, results, game over) + one shared modal |
+| `index.html` | All 10 screens (title, studio, script, budget, casting, production, **HQ**, box office, results, game over) + one shared modal |
 | `styles.css` | Cinematic theme (marquee gold/velvet red, film grain, responsive) |
-| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
+| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines**) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
 | `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
 | `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API |
@@ -25,10 +25,25 @@ research background and player-facing docs.
 ### State machine (game.js)
 
 `title → studio → script → budget → casting → production ⇄(event modals) →
-boxoffice → results → script …` with `gameover` reachable from anywhere.
+boxoffice → results → hq → script …` with `gameover` reachable from anywhere
+(two types: `bank` and `fired` — different game-over titles).
 Release keeps `state: "production"` while the critic-reviews modal is open;
 `GAME.release()` then flips to `boxoffice` (the UI drives the two steps
 separately: `GAME.critique()` → modal → `GAME.release()`).
+
+### The HQ metagame (between-films hub, `S.state = "hq"`)
+
+Persistent career state in the save blob: `prestige` 0–100, `bank { trust }`,
+`board { approval, reprieved, lastNote }`, `trends` (per-genre heat 0.75–1.3),
+`awards []` (trophy room), `repHistory []`, `news []`.
+- **Credit line** = `4 + bank.trust*0.2` (trust, not rep, sets the line).
+- **Board** (fire branch): `G.boardMeeting()` runs in `finishBoxOffice` **before**
+  the results state; approval 0 → fired game over, **but** a one-time
+  reprieve (→ 15) if rep ≥ 40 or bestGross ≥ 20 or any honors.
+- `enterHQ` skips the HQ entirely (straight to game over) if funds < 0.
+- **Prestige** = casting lever (fees ×(1 − ≤15%)); past honors add release buzz.
+- **Trends** multiply openings for player **and** rivals (`makeRivals(…, heatOf)`);
+  drift ±0.13 per film in `enterHQ`. UI: `RENDERERS.hq` with 5 tabs in `js/ui.js`.
 
 `GAME.S` holds mutable state; the flat API is flattened getters
 (`GAME.state`, `GAME.film`, `GAME.studio`, …) plus actions: `newStudio`,
@@ -37,13 +52,14 @@ separately: `GAME.critique()` → modal → `GAME.release()`).
 `critique`, `release`, `nextBoWeek`, `finishBoxOffice`, `nextFilm`, `terminateFilm`,
 `save`/`load`/`hasSave`/`clearSave`, `canAfford`, `creditLimit`.
 
-Save format: localStorage key `simcinema_save_v1` (whole state blob; safe to
-bump the key if the shape changes).
+Save format: localStorage key `simcinema_save_v2` (whole state blob; bumped
+when the HQ metagame landed — safe to bump again if the shape changes).
 
 ### Key game constants (balance is sensitive — re-run tools/ after changes)
 
-- Starting funds $15M; credit line `8 + reputation*0.15` ($M); bankruptcy at
-  120% over the limit; debt repaid from gross in `finishBoxOffice`.
+- Starting funds $15M; credit line `4 + bank.trust*0.2` ($M, trust starts 50);
+  bankruptcy at 120% over the limit; debt repaid from gross in `finishBoxOffice`.
+  Board approval 0 = fired (one reprieve per career; see HQ section).
 - Quality = `(0.55*scriptQuality + 0.45*castScore) * budgetFactor` (±event
   deltas, +8 reshoot).
 - Opening = `audience * (1 + 5.5*buzz/100) * (0.55 + 0.55*R) * rand(0.9,1.1)`;
@@ -79,7 +95,11 @@ bump the key if the shape changes).
   hierarchy ("story"/"gold" kinds → big ★ gold cards, regular dimmed) so
   production weeks read as a visible procedural story;
   dual buzz meters (positive/negative with drift, outside blips, PR Cleanup
-  lever) — see the buzz bullet under Key game constants before touching it.
+  lever) — see the buzz bullet under Key game constants before touching it;
+  **Studio Headquarters metagame** — between-films hub (dashboard, trophy room,
+  board w/ fire branch + one reprieve, genre trends, gossip feed) backed by
+  `prestige`/`bank`/`board`/`trends`/`awards`/`repHistory`/`news` state;
+  save key bumped to `simcinema_save_v2`.
 - **Balance note**: the critic step is the newest risk axis; after adding it,
   strong play measured ≈ 85% hit films / ~75–80% of 8-film careers survive
   (was 87%/93%) — still within design intent (strong play wins, sloppy loses).
@@ -93,7 +113,8 @@ bump the key if the shape changes).
 1. ~~UI layer + browser verification~~ done; ~~git init + push~~ done;
    ~~career log + hall of fame + game-over recap~~ done (commit 396d44a);
    ~~humor pass (parody personas, 12 events, title templates, poster stickers)
-   + advance reviews + story-message highlighting~~ done.
+   + advance reviews + story-message highlighting~~ done;
+   ~~Studio Headquarters metagame (5 tabs, fire branch, trends, prestige)~~ done.
 2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass.
 

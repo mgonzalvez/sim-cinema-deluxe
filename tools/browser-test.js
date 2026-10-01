@@ -231,11 +231,17 @@ const DRIVER = `
       ok("bankruptcy -> gameover -> restart");
       branch = "bankrupt-after-film-1";
     } else {
-      // branch: healthy studio -> career loop + film 2
+      // branch: healthy studio -> HQ -> career loop + film 2
       $("#btn-next-film").click();
+      if (GAME.state !== "hq") fail("expected hq: " + GAME.state);
+      if ($$("#hq-tabs .hq-tab").length !== 5) fail("hq tabs: " + $$("#hq-tabs .hq-tab").length);
+      if (!$("#hq-body .hq-card") && !$("#hq-body .trophy-grid") && !$("#hq-body")) fail("no hq body");
+      for (const t of ["trophy", "board", "trends", "gossip", "dashboard"]) { $("#hq-tabs [data-tab='" + t + "']").click(); if (!$("#hq-body") || $("#hq-body").innerHTML.length < 10) fail("empty tab: " + t); }
+      if (stopAt("hq")) return stopAt("hq");
+      $("#btn-hq-next").click();
       if (GAME.state !== "script") fail("next film: " + GAME.state);
       if ($$("#script-grid .script-card").length !== 3) fail("reroll scripts");
-      ok("career loop -> next film");
+      ok("results -> HQ (all tabs) -> next film");
 
       $$(".script-card")[1].click();
       $("#btn-script-go").click();

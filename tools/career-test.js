@@ -79,6 +79,9 @@ for (let c = 0; c < CAREERS; c++) {
         if (G.lastFilmSummary.profit > 0) hitFilms++;
         G.nextFilm();
         break;
+      case "hq":
+        G.beginNextProject();
+        break;
     }
   }
   if (G.state !== "gameover") survivors++; // finished all 8 films (or loop guard)

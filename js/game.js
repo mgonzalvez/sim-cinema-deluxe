@@ -7,7 +7,7 @@
 
 const GAME = (() => {
   const D = DATA;
-  const SAVE_KEY = "simcinema_save_v1";
+  const SAVE_KEY = "simcinema_save_v2"; // bumped: HQ metagame state added
   const LEGACY_KEY = "simcinema_legacy_v1";
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -28,8 +28,18 @@ const GAME = (() => {
     filmLog: [],              // this career's finished/terminated films
     pendingEvent: null,       // event object awaiting a choice
     eventPool: [],            // shuffled event indices for this production
-    gameOverReason: ""
+    gameOverReason: "",
+    gameOverType: "bank",     // bank | fired — flavors the game-over screen
+    prestige: 25,             // studio prestige 0-100: awards + big hits raise it; casting lever
+    bank: { trust: 50 },      // bank trust 0-100 → credit line size
+    board: { approval: 50, reprieved: false, lastNote: "" }, // board approval 0-100 → fire branch
+    trends: {},               // per-genre heat 0.75-1.3, drifts after each film
+    awards: [],               // trophy room: { title, poster, name, razzie, date, y }
+    repHistory: [],           // [{ rep, date }] for the dashboard curve
+    news: []                  // [{ date, text }] industry headlines for the HQ
   };
+  function defaultTrends() { const t = {}; for (const g of Object.keys(D.GENRES)) t[g] = 1.0; return t; }
+  const _defaultTrends = defaultTrends;
 
   // ---------- dates ----------
   S.date = { day: 1, month: 0, year: 2026 };
@@ -50,7 +60,8 @@ const GAME = (() => {
 
   // ---------- helpers ----------
   function creditLimit() {
-    return Math.round((8 + S.studio.reputation * 0.15) * 10) / 10;
+    // the bank lends on trust, not on the studio's reputation alone
+    return Math.round((4 + S.bank.trust * 0.2) * 10) / 10;
   }
   function canAfford(amount) {
     return S.studio.funds + creditLimit() >= amount;
@@ -71,6 +82,14 @@ const GAME = (() => {
     S.boxoffice = null;
     S.lastFilmSummary = null;
     S.filmLog = [];
+    S.prestige = 25;
+    S.bank = { trust: 50 };
+    S.board = { approval: 50, reprieved: false, lastNote: "The board approved the business plan. Barely." };
+    S.trends = _defaultTrends();
+    S.awards = [];
+    S.repHistory = [];
+    S.news = [];
+    S.gameOverType = "bank";
     S.state = "script";
     log(`The ${S.studio.name} lot opens with $15M and a dream.`, "gold");
     offerScripts();
@@ -82,7 +101,9 @@ const GAME = (() => {
       const blob = { studio: S.studio, state: S.state, date: S.date, messages: S.messages,
         scriptOptions: S.scriptOptions, selectedScript: S.selectedScript, rewrites: S.rewrites,
         budget: S.budget, castOptions: S.castOptions, castPicks: S.castPicks, film: S.film,
-        boxoffice: S.boxoffice, lastFilmSummary: S.lastFilmSummary, filmLog: S.filmLog };
+        boxoffice: S.boxoffice, lastFilmSummary: S.lastFilmSummary, filmLog: S.filmLog,
+        prestige: S.prestige, bank: S.bank, board: S.board, trends: S.trends,
+        awards: S.awards, repHistory: S.repHistory, news: S.news, gameOverType: S.gameOverType };
       localStorage.setItem(SAVE_KEY, JSON.stringify(blob));
     } catch (e) { /* storage full or unavailable — ignore */ }
   }
@@ -95,6 +116,14 @@ const GAME = (() => {
       if (!b.studio) return false;
       Object.assign(S, b);
       S.filmLog = b.filmLog || [];
+      S.prestige = b.prestige != null ? b.prestige : 25;
+      S.bank = b.bank || { trust: 50 };
+      S.board = b.board || { approval: 50, reprieved: false, lastNote: "" };
+      S.trends = b.trends && Object.keys(b.trends).length ? b.trends : _defaultTrends();
+      S.awards = b.awards || [];
+      S.repHistory = b.repHistory || [];
+      S.news = b.news || [];
+      S.gameOverType = b.gameOverType || "bank";
       // migration: old single-buzz saves → dual meters (positive keeps the value)
       if (S.film && S.film.buzz != null && S.film.buzzPos == null) {
         S.film.buzzPos = S.film.buzz;
@@ -187,11 +216,14 @@ const GAME = (() => {
       S.budget = maxFundable;
       log("The bank trims the budget to the size of the credit line.", "bad");
     }
+    // prestige is a real lever: famous studios get cheaper talent
+    const disc = 1 - Math.min(0.15, S.prestige * 0.0015);
+    const discount = (t) => { t.cost = Math.max(0.1, Math.round(t.cost * disc * 10) / 10); return t; };
     S.castOptions = {
-      lead: [D.makeActor(0), D.makeActor(0), D.makeActor(0)],
-      co: [D.makeActor(1), D.makeActor(1), D.makeActor(1)],
-      sup: [D.makeActor(2), D.makeActor(2), D.makeActor(2)],
-      dir: [D.makeDirector(), D.makeDirector(), D.makeDirector(), D.makeDirector(), D.makeDirector()]
+      lead: [D.makeActor(0), D.makeActor(0), D.makeActor(0)].map(discount),
+      co: [D.makeActor(1), D.makeActor(1), D.makeActor(1)].map(discount),
+      sup: [D.makeActor(2), D.makeActor(2), D.makeActor(2)].map(discount),
+      dir: [D.makeDirector(), D.makeDirector(), D.makeDirector(), D.makeDirector(), D.makeDirector()].map(discount)
     };
     S.castPicks = { lead: null, co: null, sup: null, dir: null };
     S.state = "casting";
@@ -201,7 +233,7 @@ const GAME = (() => {
   return { S, newStudio, save, load, hasSave, clearSave, offerScripts, setRewrites, confirmScript,
     setBudget, budgetFactor, projectedQuality, productionWeeks, confirmBudget, dateStr, addDays, log, spend, weeklyProdCost, creditLimit, canAfford,
     legacy, bumpLegacy,
-    _internal: { D } };
+    _internal: { D, defaultTrends } };
 })();
 
 /* ============================================================
@@ -458,15 +490,23 @@ const GAME = (() => {
     const S = G.S, f = S.film;
     if (!G.canRelease()) return;
     G.critique();
+    // the trophy shelf does its quiet work: past honors add buzz
+    const honors = S.awards.filter(a => !a.razzie).length;
+    if (honors > 0) {
+      const b = Math.min(4, honors) * 1.5;
+      f.buzzPos = Math.round(D.clamp(f.buzzPos + b, 0, 150) * 10) / 10;
+      G.log(`The studio's shelf of awards did its quiet work: +${b} buzz.`, "good");
+    }
     const audience = D.GENRES[f.genre].audience; // reputation boost applied in weekGross
+    const heat = S.trends[f.genre] != null ? S.trends[f.genre] : 1; // genre trend
     const R = f.quality / 100;
     // net buzz can now genuinely hurt: floored so a scandal can't zero the opening
     const buzzFactor = Math.max(0.35, 1 + 5.5 * (G.netBuzz() / 100));
-    const opening = audience * buzzFactor * (0.55 + 0.55 * R) * D.rand(0.9, 1.1);
+    const opening = audience * heat * buzzFactor * (0.55 + 0.55 * R) * D.rand(0.9, 1.1);
     const legs = D.GENRES[f.genre].legs || 0;
     S.boxoffice = {
       my: { title: f.title, genre: f.genre, studio: S.studio.name, q: R, legs, potential: opening, last: 0, total: 0, critics: f.reviews ? f.reviews.avg : 0 },
-      rivals: D.makeRivals(R, f.genre),
+      rivals: D.makeRivals(R, f.genre, (g) => (S.trends[g] != null ? S.trends[g] : 1)),
       week: 0, done: false, curve: [], firstLogged: false
     };
     S.state = "boxoffice";
@@ -532,14 +572,80 @@ const GAME = (() => {
     if (debt > 0) G.log(`The studio repays $${debt}M of the credit line from the box office.`, "bad");
     G.log(`"${f.title}" closes: ${D.money(gross)}${profit >= 0 ? " in the black." : " in the red."}`, "story");
     G.logFilm(f, { gross, profit, grade, weeks: bo.week });
+
+    // ---- metagame updates ----
+    S.bank.trust = Math.round(D.clamp(S.bank.trust
+      + (margin > 1 ? 12 : margin > 0.3 ? 6 : margin > 0 ? 3 : margin > -0.3 ? -4 : -10)
+      - (debt > 0 ? 5 : 0), 0, 100) * 10) / 10;
+    S.prestige = Math.round(D.clamp(S.prestige + { "S": 14, "A+": 10, "A": 7, "B+": 4, "B": 2, "C": 0, "D": -3, "F": -8 }[grade], 0, 100) * 10) / 10;
+    if (grade === "S" || grade === "A+") S.awards.push({ title: f.title, poster: f.poster || null, name: D.pick(D.AWARDS), razzie: false, date: G.dateStr(), y: S.date.year });
+    else if (grade === "F") S.awards.push({ title: f.title, poster: f.poster || null, name: D.pick(D.RAZZIES), razzie: true, date: G.dateStr(), y: S.date.year });
+    if (S.awards.length > 20) S.awards.shift();
+    S.repHistory.push({ rep: S.studio.reputation, date: G.dateStr() });
+    if (S.repHistory.length > 20) S.repHistory.shift();
+
     S.film = null;
     S.boxoffice = null;
-    S.state = "results";
+    const fired = G.boardMeeting(grade, margin, R);
+    S.state = fired ? "gameover" : "results";
     G.bumpLegacy();
     G.save();
   };
 
-  G.nextFilm = function () { G.offerScripts(); };
+  // the board meets after every film; approval 0 is the fire branch,
+  // with a one-time dramatic reprieve for studios with something to their name
+  G.boardMeeting = function (grade, margin, R) {
+    const S = G.S, b = S.board;
+    let d = Math.round(R * 8 + Math.min(1, margin) * 12 - Math.max(0, -margin) * 15);
+    d = D.clamp(d, -12, 12);
+    b.approval = Math.round(D.clamp(b.approval + d, 0, 100) * 10) / 10;
+    b.lastNote = d >= 8 ? "The board was 'impressed'. In this room, that is a standing ovation."
+      : d >= 3 ? "Nodding. The kind of nodding that means 'we will remember this'."
+      : d >= -3 ? "Muted expressions. A spreadsheet is slid across the table."
+      : "The silence after the numbers is the message.";
+    if (b.approval <= 0) {
+      const honors = S.awards.filter(a => !a.razzie).length;
+      if (!b.reprieved && (S.studio.reputation >= 40 || S.studio.bestGross >= 20 || honors > 0)) {
+        b.reprieved = true;
+        b.approval = 15;
+        b.lastNote = "An emergency meeting. Someone in the back remembers the good years. One last film. This is the last.";
+        G.log("The board votes 4-3 to give you one last picture. The pen is very heavy.", "story");
+        return false;
+      }
+      S.state = "gameover";
+      S.gameOverType = "fired";
+      S.gameOverReason = "The board hands you a cardboard box. The office plant is your only souvenir.";
+      G.log("The board votes. It is not in your favor. You are fired.", "bad");
+      return true;
+    }
+    return false;
+  };
+
+  // ---------- headquarters: the between-films metagame ----------
+  G.enterHQ = function () {
+    const S = G.S;
+    if (!S.studio) return;
+    // a broke studio doesn't get a boardroom tour
+    if (S.studio.funds < 0) {
+      S.state = "gameover";
+      S.gameOverType = "bank";
+      S.gameOverReason = "The debt from the last picture proved too heavy. The bank repossessed the lot.";
+      G.log("The bank repossesses the lot. The marquee goes dark.", "bad");
+      G.save();
+      return;
+    }
+    S.state = "hq";
+    // the industry's mood drifts after every film (gentle swings)
+    for (const g of Object.keys(D.GENRES)) {
+      S.trends[g] = Math.round(D.clamp(S.trends[g] + D.rand(-0.13, 0.11), 0.75, 1.3) * 100) / 100;
+    }
+    S.news = D.makeHeadlines(S.studio.name, S.lastFilmSummary, S.trends).map((text) => ({ date: G.dateStr(), text }));
+    if (S.news.length > 14) S.news = S.news.slice(-14);
+    G.save();
+  };
+  G.beginNextProject = function () { G.offerScripts(); };
+
+  G.nextFilm = function () { G.enterHQ(); };
 
   // ---------- bankruptcy watch ----------
   const _spend = G.spend;
@@ -581,6 +687,7 @@ const GAME = (() => {
     lastFilmSummary: { get: () => G.S.lastFilmSummary, enumerable: true },
     boDone: { get: () => !!(G.S.boxoffice && G.S.boxoffice.done), enumerable: true },
     gameOverReason: { get: () => G.S.gameOverReason, enumerable: true },
+    gameOverType: { get: () => G.S.gameOverType, enumerable: true },
     pendingScript: { get: () => G.S.pendingScript, enumerable: true }
   });
 
@@ -596,14 +703,23 @@ const GAME = (() => {
 
   G.restart = function () {
     G.clearSave();
-    G.S.state = "title";
-    G.S.studio = null;
-    G.S.film = null;
-    G.S.boxoffice = null;
-    G.S.messages = [];
-    G.S.lastFilmSummary = null;
-    G.S.pendingEvent = null;
-    G.S.filmLog = [];
+    const S = G.S;
+    S.state = "title";
+    S.studio = null;
+    S.film = null;
+    S.boxoffice = null;
+    S.messages = [];
+    S.lastFilmSummary = null;
+    S.pendingEvent = null;
+    S.filmLog = [];
+    S.prestige = 25;
+    S.bank = { trust: 50 };
+    S.board = { approval: 50, reprieved: false, lastNote: "" };
+    S.trends = G._internal.defaultTrends();
+    S.awards = [];
+    S.repHistory = [];
+    S.news = [];
+    S.gameOverType = "bank";
   };
 
 })(GAME);

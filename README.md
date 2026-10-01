@@ -84,8 +84,15 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
    chart against nine rival studio releases. Track the weekly curve until it
    drops out.
 8. **Results** — gross vs. every cost (production, cast, development, ads,
-   events, debt), a grade, and a reputation change. Make the next film — or,
-   if the credit line runs dry, the bank repossesses the lot.
+   events, debt), a grade, and a reputation change.
+9. **Studio Headquarters** — between films, your office is a metagame hub:
+   a **dashboard** (the bank's trust and your credit line, the board's approval,
+   your studio's prestige, your reputation curve, and every film's ledger), a
+   **trophy room** (honors for your hits, golden popcorns for your bombs),
+   **industry trends** (genres get hot and cold — and it changes what opens
+   well), and a feed of **gossip and rumors** from the town. Two ways out of
+   a career: the bank repossesses the lot, or the board votes you out (they
+   have exactly one reprieve in them, and they don't waste it).
 
 ### What's deliberate
 
@@ -97,6 +104,9 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
 - **Everything is procedural**: titles, cast, taglines, rivals, critics, even
   the posters (with their corner stickers and tiny credit blocks) are generated.
   No two careers look alike.
+- **A career, not just a loop**: bank trust sets your credit line, the board
+  can fire you, your prestige makes talent cheaper, and the town's moods move
+  the genres — eight films can feel like eight different seasons in Hollywood.
 - **The tone is loving, not mean**: a lot of the cast and crew are affectionate
   parodies of real film-industry figures (all fictional names), and the events,
   taglines, and critics lean into the industry's best jokes.

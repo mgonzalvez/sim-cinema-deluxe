@@ -39,7 +39,7 @@ function fullGame(seedLog) {
   const G = ctx.GAME;
   G.newStudio("Test Pictures", seedLog ? { log: seedLog } : undefined);
   let guard = 0;
-  while (G.state !== "results" && G.state !== "gameover" && guard++ < 500) {
+  while (!["results", "hq", "gameover"].includes(G.state) && guard++ < 500) {
     switch (G.state) {
       case "script":
         G.selectScript(0, 1);
@@ -66,6 +66,9 @@ function fullGame(seedLog) {
       case "results":
         seedLog && seedLog.push(["results", G.lastFilmSummary]);
         G.nextFilm();
+        break;
+      case "hq":
+        G.beginNextProject();
         break;
     }
   }

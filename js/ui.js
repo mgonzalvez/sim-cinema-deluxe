@@ -86,7 +86,7 @@ const UI = (() => {
   const SCREENS = {
     title: "screen-title", studio: "screen-studio", script: "screen-script",
     budget: "screen-budget", casting: "screen-casting", production: "screen-production",
-    boxoffice: "screen-boxoffice", results: "screen-results", gameover: "screen-gameover"
+    hq: "screen-hq", boxoffice: "screen-boxoffice", results: "screen-results", gameover: "screen-gameover"
   };
   const RENDERERS = {};
   function render() {
@@ -617,6 +617,128 @@ const UI = (() => {
   RENDERERS.boxoffice = renderBoxoffice;
 
   // ============================================================
+  // HEADQUARTERS — the between-films metagame hub
+  // ============================================================
+  const HQ_TABS = [
+    ["dashboard", "Dashboard"],
+    ["trophy", "Trophy Room"],
+    ["board", "The Board"],
+    ["trends", "Trends"],
+    ["gossip", "Gossip"]
+  ];
+  let hqTab = "dashboard";
+
+  const mood = (v, hi, mid, lo) => v >= 70 ? hi : v >= 40 ? mid : lo;
+
+  const HQ_RENDER = {
+    dashboard() {
+      const S = GAME.S, st = GAME.studio;
+      if (!st) return "";
+      const trust = S.bank.trust, appr = S.board.approval, prest = S.prestige;
+      const bar = (v, cls) => `<div class="bar"><div class="bar-fill ${cls}" style="width:${v}%"></div></div>`;
+      const cards = `
+        <div class="hq-card"><div class="hq-k">THE BANK</div>
+          <div class="hq-v">${Math.round(trust)}<small>/100 trust</small></div>${bar(trust, "buzz-pos")}
+          <div class="hq-fl">credit line ${M(GAME.creditLimit())} · ${mood(trust, "your best friend", "watchful, keeping a file", "flinches at your calls")}</div></div>
+        <div class="hq-card"><div class="hq-k">THE BOARD</div>
+          <div class="hq-v">${Math.round(appr)}<small>/100 approval</small></div>${bar(appr, appr < 25 ? "buzz-neg" : "")}
+          <div class="hq-fl">${esc(S.board.lastNote || "They have not spoken since the last film.")}</div></div>
+        <div class="hq-card"><div class="hq-k">YOUR STUDIO</div>
+          <div class="hq-v">${Math.round(prest)}<small>/100 prestige</small></div>${bar(prest, "")}
+          <div class="hq-fl">talent fees −${Math.min(15, Math.round(prest * 0.15))}% · ${mood(prest, "agents call you first", "a known quantity", "a name to be made")}</div></div>
+        <div class="hq-card"><div class="hq-k">CAREER</div>
+          <div class="hq-v">${st.films} films</div>
+          <div class="hq-fl">rep ${Math.round(st.reputation)} · best gross ${M(st.bestGross)} · ${S.awards.filter(a => !a.razzie).length} honors / ${S.awards.filter(a => a.razzie).length} popcorns</div></div>`;
+      const rows = (S.filmLog || []).slice().reverse().map(f =>
+        `<tr><td>${esc(f.t)}</td><td class="num">${f.cancelled ? "CUT" : f.grade}</td><td class="num">${f.cancelled ? "—" : M(f.gross)}</td><td class="num ${f.profit >= 0 ? "pos" : "neg"}">${f.cancelled ? "(spent " + M(f.spent) + ")" : (f.profit >= 0 ? M(f.profit) : "\u2212" + M(-f.profit))}</td></tr>`).join("");
+      return `<div class="hq-grid">${cards}</div>
+        <div class="hq-block"><div class="hq-k">REPUTATION ACROSS THE CAREER</div>
+          <div id="rep-curve"></div></div>
+        <div class="hq-block"><div class="hq-k">FILM HISTORY</div>
+          ${S.filmLog.length ? `<table class="pnl-table"><tr class="go-head"><td>Film</td><td class="num">Grade</td><td class="num">Gross</td><td class="num">Profit</td></tr>${rows}</table>` : "<p class='hq-fl'>No finished films yet. The shelf is a promise.</p>"}</div>`;
+    },
+    trophy() {
+      const S = GAME.S;
+      if (!S.awards.length) return `<p class="hq-fl" style="font-size:14px">The shelf is bare. The dust is aspirational.<br>S-grade and A+ films win honors; F-grade bombs earn golden popcorns — and popcorns, at least, are a souvenir.</p>`;
+      return `<div class="trophy-grid">` + S.awards.slice().reverse().map(a => `
+        <div class="trophy ${a.razzie ? "razzie" : "honored"}">
+          ${a.poster ? `<img src="${a.poster}" alt="">` : `<div class="trophy-ico">${a.razzie ? "🍿" : "🏆"}</div>`}
+          <div class="tr-name">${esc(a.name)}</div>
+          <div class="tr-film">“${esc(a.title)}”${a.y ? " · '" + String(a.y).slice(2) : ""}</div>
+        </div>`).join("") + `</div>`;
+    },
+    board() {
+      const S = GAME.S, b = S.board;
+      const tone = b.approval >= 70 ? "The board is on your side. In this room, that is a weather event."
+        : b.approval >= 40 ? "The board is watchful. They keep a spreadsheet. The spreadsheet is patient."
+        : b.approval >= 20 ? "The board has started using the word 'trajectory' in the same sentence as 'concerns'."
+        : "The board has stopped smiling. The next meeting may be your last.";
+      return `<div class="board-meter">
+        <div class="board-num" style="color:${b.approval < 20 ? 'var(--red-soft)' : b.approval < 40 ? 'var(--gold-soft)' : 'var(--green)'}">${Math.round(b.approval)}</div>
+        <div class="hq-fl">board approval /100</div>
+        <div class="bar board-bar"><div class="bar-fill ${b.approval < 20 ? "buzz-neg" : "buzz-pos"}" style="width:${b.approval}%"></div></div>
+        <p class="hq-note">${esc(b.lastNote || "")}</p>
+        <p class="hq-fl">${tone}${b.reprieved ? " · <b style='color:var(--gold-soft)'>ONE-FILM REPRIEVE IN EFFECT</b> — the pen is heavy." : ""}<br>Below 0, the board votes. There is one reprieve in every career — the board has used it${b.reprieved ? "." : " — carefully."}</p>
+      </div>`;
+    },
+    trends() {
+      const S = GAME.S;
+      return `<div class="trend-list">` + Object.keys(DATA.GENRES).map(g => {
+        const t = S.trends[g] != null ? S.trends[g] : 1;
+        const pct = Math.round((t - 1) * 100);
+        const w = Math.max(2, ((t - 0.75) / 0.55) * 100);
+        const cls = t > 1.05 ? "hot" : t < 0.95 ? "cold" : "";
+        const word = cls === "hot" ? "in" : cls === "cold" ? "out" : "steady";
+        return `<div class="trend-row ${cls}">
+          <span class="tr-name">${g}</span>
+          <div class="bar trend-bar"><div class="bar-fill ${cls === "hot" ? "buzz-pos" : cls === "cold" ? "buzz-neg" : ""}" style="width:${w}%"></div></div>
+          <span class="tr-val">${pct >= 0 ? "+" : "−"}${Math.abs(pct)}% ${word}</span>
+        </div>`;
+      }).join("") + `</div>
+        <p class="hq-fl" style="margin-top:10px">Heat multiplies the opening weekend — for you <b>and</b> the rivals. A cold genre opens small; a hot one opens loud. The town's mood drifts after every film.</p>`;
+    },
+    gossip() {
+      const S = GAME.S;
+      if (!S.news.length) return `<p class="hq-fl">The phones are quiet. In this town, that is the loudest headline.</p>`;
+      return `<div class="news-list">` + S.news.slice().reverse().map(n =>
+        `<div class="news-item"><div class="m-date">${esc(n.date)}</div>${esc(n.text)}</div>`).join("") + `</div>`;
+    }
+  };
+
+  function drawRepCurve() {
+    const el = document.getElementById("rep-curve");
+    if (!el) return;
+    const all = [{ rep: 25 }].concat(GAME.S.repHistory || []);
+    const W = 420, H = 96, pad = 16;
+    const x = (i) => pad + (W - pad * 2) * (all.length > 1 ? i / (all.length - 1) : 0.5);
+    const y = (r) => H - pad - (H - pad * 2) * (D.clamp(r, 0, 100) / 100);
+    const pts = all.map((p, i) => `${x(i).toFixed(1)},${y(p.rep).toFixed(1)}`).join(" ");
+    const dots = all.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.rep).toFixed(1)}" r="3" fill="#f0b429"/>`).join("");
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+      <line x1="${pad}" y1="${y(0)}" x2="${W - pad}" y2="${y(0)}" stroke="rgba(255,255,255,0.1)"/>
+      <line x1="${pad}" y1="${y(100)}" x2="${W - pad}" y2="${y(100)}" stroke="rgba(255,255,255,0.1)"/>
+      <text x="${pad - 8}" y="${y(100) + 4}" text-anchor="end" font-size="9" fill="#8f8f9f">100</text>
+      <text x="${pad - 8}" y="${y(0) + 4}" text-anchor="end" font-size="9" fill="#8f8f9f">0</text>
+      <polyline points="${pts}" fill="none" stroke="#f0b429" stroke-width="2"/>${dots}
+    </svg>`;
+  }
+
+  RENDERERS.hq = function () {
+    const S = GAME.S;
+    $("#hq-sub").textContent = `${S.studio.name} · between pictures · ${GAME.dateStr()}`;
+    $("#hq-tabs").innerHTML = HQ_TABS.map(([id, label]) =>
+      `<button class="hq-tab ${id === hqTab ? "active" : ""}" data-tab="${id}">${label}</button>`).join("");
+    $$("#hq-tabs .hq-tab").forEach(b => b.addEventListener("click", () => {
+      hqTab = b.dataset.tab;
+      SFX.play.select();
+      RENDERERS.hq();
+    }));
+    $("#hq-body").innerHTML = HQ_RENDER[hqTab]();
+    if (hqTab === "dashboard") drawRepCurve();
+    SFX.play.click();
+  };
+
+  // ============================================================
   // RESULTS
   // ============================================================
   RENDERERS.results = function () {
@@ -657,6 +779,7 @@ const UI = (() => {
   // GAME OVER
   // ============================================================
   RENDERERS.gameover = function () {
+    $("#go-title").textContent = GAME.gameOverType === "fired" ? "YOU ARE FIRED" : "STUDIO CLOSING";
     $("#go-sub").textContent = GAME.gameOverReason || "The bank has sold the lot. The cameras go dark.";
     const s = GAME.studio;
     const stats = [
@@ -701,6 +824,7 @@ const UI = (() => {
         3. <b>Casting</b> — stars bring draw and social reach, but big fees.<br>
         4. <b>Production</b> — pass weeks, buy ads, and manage <b>two buzz meters</b>: positive (green) and negative (red). Both decay ~3%/week, drift on their own, and events (gaffes, scandals, heartwarming moments) can move either or both. What the opening weekend sees is the difference.<br>
         5. <b>Release</b> — four critics weigh in with advance reviews (their consensus shifts buzz), then track your film on the Top 10 until it drops out.
+        6. <b>Headquarters</b> — between films: the dashboard (bank trust, board approval, prestige, rep curve), the trophy room, and the industry trends that shape your next opening weekend. If the board's approval hits zero, it votes.
       </div>
       <p style="margin-top:14px">💡 <b>Test screening</b> (60%+ complete, $0.5M) scores the film; under 55 you can reshoot for $1.5M (+8 quality).</p>
       <p>💰 You start with $15M plus a credit line of ${M(limit)}M (it grows with reputation). Go 20% past the limit and the bank takes the lot.</p>
@@ -826,6 +950,11 @@ const UI = (() => {
     $("#btn-next-film").addEventListener("click", () => {
       SFX.play.click();
       GAME.nextFilm();
+      render();
+    });
+    $("#btn-hq-next").addEventListener("click", () => {
+      SFX.play.select();
+      GAME.beginNextProject();
       render();
     });
     $("#btn-restart").addEventListener("click", () => {

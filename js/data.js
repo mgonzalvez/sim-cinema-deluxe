@@ -457,7 +457,32 @@ const DATA = (() => {
     ]
   };
 
+  // ---------- awards & golden popcorns (trophy room) ----------
+  const AWARDS = [
+    "Golden Reel — Best Picture",
+    "Bronze Balloon — Best Director",
+    "Academy of Celluloid — Best Ensemble",
+    "Silver Marquee — Critics' Pick of the Year",
+    "The Weeping Screen — Best Film to Call Your Mother About",
+    "Popcorn Society — Best Good Time"
+  ];
+
+  const RAZZIES = [
+    "Rotten Reel Golden Popcorn — Worst Picture",
+    "Golden Ticket — Most Disappointing Post-Credits Shot",
+    "The Empty Auditorium — Audience of One",
+    "Brass Candle — Best Film Nobody Asked For"
+  ];
+
   const RIVAL_STUDIOS = ["Apex Features", "Crimson Reel", "Northlight", "Gilded Gate", "Pioneer Lot", "Silverline", "Blue Harbor", "Fifth & Vine", "Redline", "Halo Pictures", "Westport", "Marble Arch", "Kestrel", "Bastion", "Lantern Row"];
+
+  // ---------- industry headlines (HQ news tab) ----------
+  const HEADLINE_GLOSS = [
+    (s) => `${s} is 'open to the right project'. The wrong project has a waiting list.`,
+    (s) => `${s} is reportedly 'taking a break'. The internet disagrees with the break.`,
+    (s) => `A ${s} interview is doing the rounds. The clips are more entertaining than the film they promote.`,
+    (s) => `${s} was seen at a rival studio lot. Which lot is the better story.`
+  ];
 
   const RIVAL_GENRE_NOUNS = {
     "Action": ["Protocol", "Reckoning", "Freefall", "Payload", "Blackout", "Vendetta", "Afterburn"],
@@ -470,7 +495,27 @@ const DATA = (() => {
     "Documentary": ["Mill", "Strike", "Ballot", "River", "Ledger", "Front Porch"]
   };
 
-  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS };
+  function makeHeadlines(studioName, last, trends) {
+    const gs = Object.keys(GENRES);
+    const ranked = gs.slice().sort((a, b) => trends[b] - trends[a]);
+    const hot = ranked[0], cold = ranked[ranked.length - 1];
+    const h = [];
+    h.push(trends[hot] >= 1.1 ? `${hot} is the new word in the town. Everyone has a ${hot.toLowerCase()} idea.`
+      : trends[hot] > 0.95 ? `${hot} is quietly having a moment, which in this town is a headline.`
+      : `Even ${hot} is struggling. The town is having a weird week.`);
+    h.push(trends[cold] <= 0.9 ? `Trade memo: ${cold} films opening into empty auditoriums.`
+      : `${cold} is finding a weird second life on streaming. The studios are pretending not to care.`);
+    if (last) {
+      if (last.grade === "S" || last.grade === "A+") h.push(`The trades say ${studioName} is 'to watch' this season. All of them, suspiciously.`);
+      else if (last.grade === "F" || last.grade === "D") h.push(`A ${studioName} picture is the subject of a viral thread. Nobody is smiling. Everyone is.`);
+      else h.push(`${studioName}'s last release did exactly what the numbers suggested. Boring, in a good way.`);
+    }
+    h.push(`${pick(RIVAL_STUDIOS)} greenlights a ${pick(gs)} event picture. The word is: big. The other word is: maybe.`);
+    h.push(pick(HEADLINE_GLOSS)(pick(PARODY_STARS).name));
+    return h;
+  }
+
+  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, AWARDS, RAZZIES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS, makeHeadlines };
 })();
 
 // ---------- procedural generators ----------
@@ -600,7 +645,7 @@ const DATA = (() => {
     return pool.slice(0, 3).map(([line, q]) => ({ line, q }));
   };
 
-  D.makeRivals = (playerRoughQuality, genre) => {
+  D.makeRivals = (playerRoughQuality, genre, heatOf) => {
     const rivals = [];
     const studios = D.shuffle(D.RIVAL_STUDIOS);
     const genres = Object.keys(D.GENRES);
@@ -610,7 +655,8 @@ const DATA = (() => {
       const buzz = D.rand(15, 95);
       const g = D.GENRES[rGenre];
       const legs = g.legs || 0;
-      const potential = g.audience * (1 + 5.5 * (buzz / 100)) * (0.55 + 0.55 * q) * D.rand(0.85, 1.1);
+      const heat = heatOf ? heatOf(rGenre) : 1; // genre trend, applied to rivals too
+      const potential = g.audience * heat * (1 + 5.5 * (buzz / 100)) * (0.55 + 0.55 * q) * D.rand(0.85, 1.1);
       const title = `${D.pick(D.adjectives[rGenre])} ${D.pick(D.RIVAL_GENRE_NOUNS[rGenre])}`;
       rivals.push({ title, genre: rGenre, studio: studios[i % studios.length], q, legs, buzz, potential, total: 0, last: 0, prev: null });
     }
