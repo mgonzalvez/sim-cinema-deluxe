@@ -332,8 +332,11 @@ const UI = (() => {
 
   function renderMessages() {
     const el = $("#messages");
-    el.innerHTML = GAME.messages.map((m) =>
-      `<div class="msg ${m.kind || ""}"><div class="m-date">${esc(m.date)}</div>${esc(m.text)}</div>`).join("");
+    el.innerHTML = GAME.messages.map((m) => {
+      const big = m.kind === "gold" || m.kind === "story";
+      const cls = big ? "big" : (m.kind || "dim");
+      return `<div class="msg ${cls}"><div class="m-date">${esc(m.date)}</div>${big ? "<span class=\"m-star\">★</span> " : ""}${esc(m.text)}</div>`;
+    }).join("");
     el.scrollTop = el.scrollHeight;
   }
 
@@ -422,6 +425,33 @@ const UI = (() => {
       closeModal();
       renderProduction();
     }));
+  }
+
+  // ---------- advance reviews ----------
+  function openReviewsModal() {
+    const f = GAME.film;
+    if (!f || !f.reviews || modalOpen) return;
+    const r = f.reviews;
+    const cards = r.list.map((c) => `
+      <div class="review-card">
+        <div class="rv-head"><span class="rv-name">${esc(c.name)}</span><span class="rv-score" data-s="${c.score}">${c.score}/100</span></div>
+        <div class="rv-outlet">${esc(c.outlet)}</div>
+        <div class="rv-quote">“${esc(c.quote)}”</div>
+      </div>`).join("");
+    openModal("FIRST REVIEWS ARE IN", `
+      <p style="color:var(--muted);font-size:12.5px">The critics saw it. Consensus: <b style="color:var(--gold-soft)">${D.criticLabel(r.avg)}</b> (avg ${r.avg}/100). Word of mouth will do the rest.</p>
+      <div class="review-grid">${cards}</div>
+      <div class="btn-row" style="margin-top:18px"><button class="btn btn-primary btn-lg" id="btn-theaters">🎬 &nbsp;OPEN THE THEATERS</button></div>`);
+    $$("#modal-body .rv-score").forEach((s) => {
+      const v = +s.dataset.s;
+      s.style.color = v >= 70 ? "var(--green)" : v < 45 ? "var(--red-soft)" : "var(--gold-soft)";
+    });
+    $("#btn-theaters").addEventListener("click", () => {
+      SFX.play.fanfare();
+      closeModal();
+      GAME.release();
+      render();
+    });
   }
 
   // ---------- test screening ----------
@@ -544,7 +574,7 @@ const UI = (() => {
     const f = GAME.film;
     if (f && f.poster) $("#bo-poster").src = f.poster;
     $("#bo-title").textContent = bo.my.title;
-    $("#bo-meta").textContent = `${bo.my.genre} · ${bo.my.studio}`;
+    $("#bo-meta").textContent = `${bo.my.genre} · ${bo.my.studio}${bo.my.critics ? ` · critics ${bo.my.critics}/100` : ""}`;
     $("#bo-gross").textContent = M(bo.my.total);
     $("#bo-week").textContent = String(bo.week);
     $("#bo-rank").textContent = GAME.boRank();
@@ -599,6 +629,7 @@ const UI = (() => {
     notes.push(`<div class="res-note career-note">CAREER · film ${clog.length} · ${sM(careerProfit)} total profit <span class="chips">${chips}</span></div>`);
     if (s.grade === "S" || s.grade === "A+") notes.push(`<div class="res-note award">🏆 The industry takes notice.</div>`);
     if (s.screened) notes.push(`<div class="res-note">The test audience scored it ${s.screenScore}/100 before release.</div>`);
+    if (s.critics != null) notes.push(`<div class="res-note">The critics settled on ${s.critics}/100 — ${D.criticLabel(s.critics).toLowerCase()}.</div>`);
     if (s.tagline) notes.push(`<div class="res-note">The tagline ran in the papers: “${esc(s.tagline)}”</div>`);
     notes.push(`<div class="res-note">Reputation ${s.repDelta >= 0 ? "+" : "−"}${Math.abs(s.repDelta)} → ${Math.round(GAME.studio.reputation)}` +
       (s.profit >= 0 ? " · the bank is friendly now." : " · the bank will mention this at the next review.") + "</div>");
@@ -654,7 +685,7 @@ const UI = (() => {
         2. <b>Budget</b> — aim near the ideal. Under hurts quality; way over wastes money.<br>
         3. <b>Casting</b> — stars bring draw and social reach, but big fees.<br>
         4. <b>Production</b> — pass weeks, buy ads (buzz decays ~3%/week), resolve on-set events.<br>
-        5. <b>Release</b> — track your film on the Top 10 until it drops out.
+        5. <b>Release</b> — four critics weigh in with advance reviews (their consensus shifts buzz), then track your film on the Top 10 until it drops out.
       </div>
       <p style="margin-top:14px">💡 <b>Test screening</b> (60%+ complete, $0.5M) scores the film; under 55 you can reshoot for $1.5M (+8 quality).</p>
       <p>💰 You start with $15M plus a credit line of ${M(limit)}M (it grows with reputation). Go 20% past the limit and the bank takes the lot.</p>
@@ -758,9 +789,10 @@ const UI = (() => {
     $("#btn-screen").addEventListener("click", doScreening);
     $("#btn-release").addEventListener("click", () => {
       if (!GAME.canRelease()) return;
-      SFX.play.fanfare();
-      GAME.release();
-      render();
+      SFX.play.shutter();
+      GAME.critique();
+      openReviewsModal();
+      renderProduction();
     });
 
     // box office
@@ -817,5 +849,5 @@ const UI = (() => {
   else boot();
 
   return { $, M, esc, toast, render, openModal, closeModal, refreshPosters, RENDERERS,
-    openHelpModal, openEventModal, passWeekAction, boNext, renderProduction, renderBoxoffice };
+    openHelpModal, openEventModal, openReviewsModal, passWeekAction, boNext, renderProduction, renderBoxoffice };
 })();

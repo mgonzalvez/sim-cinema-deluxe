@@ -173,6 +173,10 @@ const DRIVER = `
         else $("#modal-x").click();
       } else if (GAME.canRelease()) {
         $("#btn-release").click();
+        if (!$("#modal").hidden === false) fail("reviews modal did not open");
+        if ($$("#modal-body .review-card").length !== 4) fail("review cards: " + $$("#modal-body .review-card").length);
+        if (stopAt("reviews")) return stopAt("reviews");
+        $("#btn-theaters").click();
         break;
       } else {
         $("#btn-pass-week").click();

@@ -42,6 +42,43 @@ const DATA = (() => {
   const DIRECTOR_FIRST = ["Vera", "Sal", "Maren", "Kip", "Ezra", "Dottie", "Rhys", "Iris", "Cole", "Bette", "Murray", "Suki"];
   const DIRECTOR_STYLE = ["method perfectionist", "one-take romantic", "practical-effects purist", "visionary maverick", "efficiency machine"];
 
+  // ---------- parody personas (affectionate, one-off from real industry figures) ----------
+  const PARODY_STARS = [
+    { name: "Meryl Strayp",          tier: "A-List Star",   draw: 88, social: 45, cost: 6.5, quip: "Plays 11 characters in one film. It was 3 people." },
+    { name: "Johnny Depts",          tier: "A-List Star",   draw: 82, social: 90, cost: 7.5, quip: "Owns an island. The island denies it." },
+    { name: "Leonardo DiCarpio",     tier: "A-List Star",   draw: 90, social: 55, cost: 6.0, quip: "His 28th supporting role, and his best yet. Allegedly." },
+    { name: "Brad Pitfalls",         tier: "A-List Star",   draw: 78, social: 85, cost: 8.0, quip: "Still does the same red-carpet walk. It still works." },
+    { name: "Tom Hankins",           tier: "A-List Star",   draw: 76, social: 40, cost: 5.5, quip: "Will always be that guy. That is the point." },
+    { name: "Denzal W. Carington",   tier: "A-List Star",   draw: 85, social: 30, cost: 6.0, quip: "Accepts every award with the same 20 words." },
+    { name: "Will Smeth",            tier: "A-List Star",   draw: 80, social: 88, cost: 7.0, quip: "Will clap at the camera if you say the wrong word." },
+    { name: "Scarlett Johanssen",    tier: "A-List Star",   draw: 84, social: 75, cost: 6.5, quip: "A third of her films are sequels. She is not sorry." },
+    { name: "George Clooney Jr. II", tier: "A-List Star",   draw: 79, social: 82, cost: 6.2, quip: "Half his dialogue is an ad. He calls it synergy." },
+    { name: "Julia Robberts",        tier: "A-List Star",   draw: 83, social: 66, cost: 5.9, quip: "Smiles so hard the script rewrote itself." },
+    { name: "Angelina Jolie-Hart",   tier: "A-List Star",   draw: 81, social: 58, cost: 5.8, quip: "Speaks four languages. None of them are budget." },
+    { name: "Emma Stonesworth",      tier: "Bankable Star", draw: 70, social: 62, cost: 4.0, quip: "Will do a tiny indie for free, but only if there is a horse." },
+    { name: "Caitlin Blancher",      tier: "Bankable Star", draw: 72, social: 38, cost: 4.5, quip: "Plays the villain. The villain is justified." },
+    { name: "Viola DeCive",          tier: "Bankable Star", draw: 68, social: 35, cost: 3.5, quip: "Does her own stunts, her own makeup, and her own taxes." },
+    { name: "Ryan Goslings",         tier: "Bankable Star", draw: 74, social: 70, cost: 4.0, quip: "90 minutes, 30% of it long silences. You will believe them." },
+    { name: "Margot Kidman",         tier: "Bankable Star", draw: 71, social: 48, cost: 3.8, quip: "Made six films this year. Four of them her own." },
+    { name: "Sandra Bullocke",       tier: "Bankable Star", draw: 69, social: 52, cost: 3.6, quip: "Plays the nice one. Makes the nice one complicated." },
+    { name: "Oscar Isaacson",        tier: "Bankable Star", draw: 66, social: 42, cost: 3.2, quip: "Every role is a sequel to the last one. He commits to it." }
+  ];
+
+  const PARODY_DIRECTORS = [
+    { name: "Christopher Nollan",    style: "No trailers, no ads, a three-hour runtime.",            score: 88, cost: 4.5 },
+    { name: "Steven Speigelberg",    style: "Every film ends with a father. Every single one.",     score: 85, cost: 4.0 },
+    { name: "Quentin Tarrantino",    style: "Cites fourteen films in one scene. All of them real.", score: 86, cost: 4.2 },
+    { name: "Greta Grewing",         style: "The romances run long. The cuts run longer.",          score: 84, cost: 3.8 },
+    { name: "Bong Jun-ho",           style: "One scene is nine minutes. You will understand why.",  score: 90, cost: 4.0 },
+    { name: "James Camerone",        style: "The budget is 40% over. The budget was right.",        score: 92, cost: 5.0 },
+    { name: "Guillermo del Torto",   style: "The monster is only real if the crew believes.",       score: 87, cost: 4.1 },
+    { name: "Danni Boyer",           style: "The camera never stops. Neither does the budget.",     score: 82, cost: 3.5 },
+    { name: "Martin Scorzesi",       style: "The film is 15 years old. So is the director.",        score: 89, cost: 4.4 },
+    { name: "David Finchler",        style: "Shot 47 takes of a door closing. Kept all of them.",   score: 86, cost: 4.3 },
+    { name: "Wess Andersson",        style: "Every prop is centered. Emotionally, too.",            score: 85, cost: 3.9 },
+    { name: "M. Night Shyamalane",   style: "The twist is the film. The film is the twist.",        score: 80, cost: 3.6 }
+  ];
+
   const adjectives = {
     "Action": ["Lethal", "Relentless", "Furious", "Maximum", "Burning", "Iron", "Crimson"],
     "Comedy": ["Awkward", "Ridiculous", "Unhinged", "Sucky", "Mildly Inconvenient", "Chaotic", "Deliciously"],
@@ -68,42 +105,58 @@ const DATA = (() => {
     "Action": [
       "A retired stunt double must finish one last job when the studio he faked his death for comes collecting.",
       "A delivery driver accidentally carries a case of state secrets across the country in a refrigerated truck.",
-      "Two rival heist crews hit the same vault and spend the night stuck inside, sharing a radio."
+      "Two rival heist crews hit the same vault and spend the night stuck inside, sharing a radio.",
+      "A decommissioned satellite falls into a small town. The town votes to keep it. The town has a problem.",
+      "Two retired hit men are hired to ruin each other's retirements."
     ],
     "Comedy": [
       "A wedding planner who can't be married is hired by her own estranged sister's wedding party.",
       "A small town votes to rename itself after a local cheese, and the PR disaster spirals.",
-      "An insurance adjuster must appraise a house where everything is haunted, except the listing agent's enthusiasm."
+      "An insurance adjuster must appraise a house where everything is haunted, except the listing agent's enthusiasm.",
+      "A motivational speaker must host the very conference she walked out of in 2019.",
+      "A family business makes one product, regrets, and demand is up."
     ],
     "Drama": [
       "A retired judge returns to her small hometown to settle her brother's estate and finds the whole town is in it.",
       "Two estranged siblings inherit their father's failing newspaper and its unfinished final column.",
-      "A long-married couple decides to spend their last summer vacation pretending they're on their first."
+      "A long-married couple decides to spend their last summer vacation pretending they're on their first.",
+      "A widow finds a second voicemail account on her late husband's phone. She never opens it. That is the whole film.",
+      "A legendary actor returns for a hometown gala where nobody mentions it."
     ],
     "Horror": [
       "A film restorer finds a scene in a classic movie that wasn't there when it was released — and it knows her name.",
       "A rural parish gets a new organ; the congregation starts hearing harmonies that aren't in the score.",
-      "A sleep clinic's new insomnia cure works perfectly. No one wakens the same."
+      "A sleep clinic's new insomnia cure works perfectly. No one wakens the same.",
+      "A true-crime podcaster investigates a house that has been filming itself for decades.",
+      "The new smart mirror works perfectly, except it waves back first."
     ],
     "Sci-Fi": [
       "A deep-space salvage crew finds a station that has been broadcasting the same lullaby for 200 years.",
       "Every citizen gets a twin built from their own backup; this one starts filing taxes first.",
-      "A colony ship wakes early to find the destination planet has already developed — and noticed them."
+      "A colony ship wakes early to find the destination planet has already developed — and noticed them.",
+      "First contact is a one-star review of humanity, posted from the future.",
+      "A time traveler arrives ten minutes early to warn everyone about the next nine."
     ],
     "Romance": [
       "Two rival food-truck operators get stuck sharing a parking spot for an entire festival weekend.",
       "A lighthouse keeper receives postcards from a sailor who died in 1962, dated next week.",
-      "A matchmaker's app pairs her with the guy her ex keeps bragging about. It's him."
+      "A matchmaker's app pairs her with the guy her ex keeps bragging about. It's him.",
+      "A couple who left each other voicemails for twenty years finally leaves a fourth.",
+      "Two people meet in a queue. The queue takes three hours. It is the best three hours."
     ],
     "Animation": [
       "A bakery cat who believes she's a wolf goes on a road trip to find the pack she's never met.",
       "Paper cut-outs escape a child's notebook and stage a musical about the crumpled ones.",
-      "A lighthouse beam falls in love with a comet that visits once a century. It's a long-distance relationship."
+      "A lighthouse beam falls in love with a comet that visits once a century. It's a long-distance relationship.",
+      "A sock that falls off the dryer has a one-way ticket and big plans.",
+      "The last paper moon in the sky is being recycled. The night is not ready for it."
     ],
     "Documentary": [
       "A follow-the-money portrait of one town's last independent movie theater.",
       "Four generations of one family run the same diner, and the camera follows one ordinary Tuesday.",
-      "The last lighthouse keepers of the coast, on automation, weather, and stubbornness."
+      "The last lighthouse keepers of the coast, on automation, weather, and stubbornness.",
+      "A three-generation argument about who gets the good chair, told in 74 minutes.",
+      "An in-depth portrait of one office's forty-year war with the coffee machine."
     ]
   };
 
@@ -151,6 +204,56 @@ const DATA = (() => {
     ]
   };
 
+  // ---------- advance reviews ----------
+  const CRITICS = [
+    { name: "Roger Ebbs",       outlet: "The Daily Reel",   bias: 9 },
+    { name: "Mark Kermodey",    outlet: "Front Row",        bias: -10 },
+    { name: "Manolea Dargis",   outlet: "Back Row Weekly",  bias: 2 },
+    { name: "A. O. Scottish",   outlet: "The Film Journal", bias: -6 },
+    { name: "Leslie Sugg",      outlet: "Popcorn Quarterly", bias: 6 },
+    { name: "Peter Travears",   outlet: "The Rotten Reel",  bias: -2 },
+    { name: "Peggy Maltin",     outlet: "Celluloid Digest", bias: 0 },
+    { name: "David Edelson",    outlet: "The Reel Review",  bias: -4 }
+  ];
+
+  const REVIEW_QUOTES = {
+    rave: [
+      "A masterclass in restraint. I have already recommended it to four people.",
+      "I walked out humming the score and apologizing to my own life.",
+      "The third act should be studied, framed, and re-released as a standalone feature.",
+      "Riveting, funny, and quietly devastating. Rare.",
+      "The best film I have seen this year. The rest of the year can take its shoes off."
+    ],
+    positive: [
+      "A confident, well-built picture that respects the audience just a little.",
+      "Not flawless, but the good parts are frequent and the bad parts are brief.",
+      "I liked it more the second time around, which is the real test.",
+      "Solid, warm, and a little braver than its genre allows.",
+      "A good time that occasionally believes in itself. Mostly."
+    ],
+    mixed: [
+      "The best 80 minutes and a questionable 40.",
+      "It has a pulse, but the heart seems to be elsewhere.",
+      "I respect what it tries. I am less certain about what it achieves.",
+      "Half of this is a film; the other half is a suggestion.",
+      "A film that is constantly nearly there."
+    ],
+    pan: [
+      "It mistakes volume for passion and running time for depth.",
+      "I kept checking the time. Then I checked it again, suspiciously.",
+      "The trailer was, frankly, the better film.",
+      "Somewhere in the mix, the story lost the plot. The plot was fine.",
+      "It asks you to lean in. I leaned back."
+    ],
+    torch: [
+      "I have seen better films in airport lounges.",
+      "The credits arrived like a fire escape.",
+      "My popcorn was more engaging than the second act.",
+      "I came for a film. I left with a headache and a refund request.",
+      "Somewhere, a good film is being written. It is not this one."
+    ]
+  };
+
   // ---------- advertising ----------
   const ADS = [
     { id: "tv",      name: "TV Commercials",      sub: "30s national spots",        cost: 1.5, buzz: 14, unlock: () => true },
@@ -164,62 +267,62 @@ const DATA = (() => {
   // ---------- production events ----------
   const EVENTS = [
     {
-      id: "stunt", title: "Stunt Rig Malfunction",
-      text: "The crane jib on the big set piece is bending under load. The stunt coordinator wants it fixed before another take.",
+      id: "stunt", title: "The Crane Is Singing",
+      text: "The jib on the big set piece is bending under load, and frankly, it is making a sound. The stunt coordinator would like a decision — preferably one that does not end in a tabloid headline.",
       choices: [
-        { label: "Hire certified riggers", cost: 1.2, detail: "Safe. Production continues.", run: (g) => { g.log("Riggers secured the rig. Production continues.", "good"); } },
-        { label: "Shoot it anyway", cost: 0, detail: "Free, but someone might get hurt.", run: (g) => {
-          if (Math.random() < 0.45) { g.film.quality = clamp(g.film.quality - 8, 5, 100); g.film.buzz = Math.max(0, g.film.buzz - 5); g.log("A stuntman sprained his wrist on camera. The footage is shaky and the tabloids are delighted. Quality −8, buzz −5.", "bad"); }
+        { label: "Bring in certified riggers", cost: 1.2, detail: "Safe. Boring, in a good way.", run: (g) => { g.log("Riggers secured the rig. The crane is now boring. Production continues.", "good"); } },
+        { label: "Shoot it anyway", cost: 0, detail: "Free. The crane is singing a little louder now.", run: (g) => {
+          if (Math.random() < 0.45) { g.film.quality = clamp(g.film.quality - 8, 5, 100); g.film.buzz = Math.max(0, g.film.buzz - 5); g.log("A stuntman sprained his wrist on camera. The footage is shaky and the tabloids are having a very good afternoon. Quality −8, buzz −5.", "bad"); }
           else g.log("The stunt landed clean. The coordinator is still shaking, but the take is gold.", "good");
         } }
       ]
     },
     {
-      id: "actor-sick", title: "The Lead Is Sick",
-      text: "Your lead actor has food poisoning the morning of the finale shoot. The day's schedule is a two-week catchup.",
+      id: "actor-sick", title: "The Lead Ate a Burrito",
+      text: "Your lead has food poisoning the morning of the finale shoot. It was a gas station burrito. The day's schedule is a two-week catchup.",
       choices: [
-        { label: "Reschedule the day", cost: 0.9, detail: "Costs money, no quality loss.", run: (g) => { g.log("The finale was rescheduled. The actor ate bland soup and performed flawlessly.", "good"); } },
-        { label: "Cannibalize coverage from other days", cost: 0, detail: "Free, but the finale will feel thinner.", run: (g) => { g.film.quality = clamp(g.film.quality - 5, 5, 100); g.log("The finale is held together with other takes and a lot of faith. Quality −5.", "bad"); } }
+        { label: "Reschedule the day", cost: 0.9, detail: "Costs money. The burrito gets what's coming to it.", run: (g) => { g.log("The finale was rescheduled. The actor ate bland soup and performed flawlessly.", "good"); } },
+        { label: "Cannibalize coverage", cost: 0, detail: "Free, but the finale will feel thinner.", run: (g) => { g.film.quality = clamp(g.film.quality - 5, 5, 100); g.log("The finale is held together with B-roll and a lot of faith. Quality −5.", "bad"); } }
       ]
     },
     {
-      id: "director-passion", title: "Creative Ambition",
-      text: "Your director wants to re-shoot the entire third act with a live orchestra in the frame. It is, against all odds, a good idea.",
+      id: "director-passion", title: "The Orchestra Idea",
+      text: "Your director wants to re-shoot the entire third act with a live orchestra in the frame. This is, against all odds, a good idea.",
       choices: [
-        { label: "Fund the orchestra", cost: 1.1, detail: "Quality +6.", run: (g) => { g.film.quality = clamp(g.film.quality + 6, 5, 100); g.log("The orchestra is in the frame. It is, against all odds, a good idea. Quality +6.", "good"); } },
-        { label: "Hold the line on the schedule", cost: 0, detail: "Quality −3. The director will remember this.", run: (g) => { g.film.quality = clamp(g.film.quality - 3, 5, 100); g.log("The director accepts it, but the third act plays it safe. Quality −3.", "bad"); } }
+        { label: "Fund the orchestra", cost: 1.1, detail: "Quality +6. The music is worth it.", run: (g) => { g.film.quality = clamp(g.film.quality + 6, 5, 100); g.log("The orchestra is in the frame. It is, against all odds, a good idea. Quality +6.", "good"); } },
+        { label: "Protect the schedule", cost: 0, detail: "Quality −3. The director will remember this fondly, and then not.", run: (g) => { g.film.quality = clamp(g.film.quality - 3, 5, 100); g.log("The director accepts it, but the third act plays it safe. Quality −3.", "bad"); } }
       ]
     },
     {
-      id: "weather", title: "Weather Delay",
-      text: "A storm front has grounded the exterior sequence for two days. Half the production is idle, but not idle-cheap.",
+      id: "weather", title: "A Storm With a Personality",
+      text: "A storm front has grounded the exterior sequence for two days. Half the production is idle, but not idle-cheap, and the crew has started a card game.",
       choices: [
-        { label: "Rent the soundstage", cost: 0.8, detail: "Shoot indoors on schedule.", run: (g) => { g.log("The storm is a rain effect now. The production calendar is intact.", "good"); } },
-        { label: "Let the crew rest", cost: 0, detail: "Save money; the schedule slips and morale dips.", run: (g) => { g.film.quality = clamp(g.film.quality - 4, 5, 100); g.log("Two lost days of schedule and a crew with too much coffee. Quality −4.", "bad"); } }
+        { label: "Rent the soundstage", cost: 0.8, detail: "Shoot indoors on schedule.", run: (g) => { g.log("The storm is a rain effect now. The calendar is intact. The card game is not.", "good"); } },
+        { label: "Let the crew rest", cost: 0, detail: "Save money; the schedule slips and morale dips.", run: (g) => { g.film.quality = clamp(g.film.quality - 4, 5, 100); g.log("Two lost days, a card-game debt, and a crew with too much coffee. Quality −4.", "bad"); } }
       ]
     },
     {
-      id: "script-hole", title: "The Third Act Doesn't Land",
-      text: "The dailies reveal the climax simply does not work. Two departments are now waiting on you for an answer.",
+      id: "script-hole", title: "The Climax Is Doing a Bit",
+      text: "The dailies reveal that the climax is simply not landing. Two departments are waiting on you for an answer, in the silent way that departments do.",
       choices: [
-        { label: "Bring in a rewrite team", cost: 1.6, detail: "Quality +8. Costs a fortune.", run: (g) => { g.film.quality = clamp(g.film.quality + 8, 5, 100); g.log("The rewrite team worked a weekend and produced a scene everyone cried at in the truck. Quality +8.", "good"); } },
-        { label: "Trust the original draft", cost: 0, detail: "Free, but the climax stays weird.", run: (g) => { g.film.quality = clamp(g.film.quality - 6, 5, 100); g.log("The climax stays, unchanged, with the faint smell of a conference table. Quality −6.", "bad"); } }
+        { label: "Bring in a rewrite team", cost: 1.6, detail: "Quality +8. Costs a fortune.", run: (g) => { g.film.quality = clamp(g.film.quality + 8, 5, 100); g.log("The rewrite team worked the weekend and produced a scene that made people cry in the trucks. Quality +8.", "good"); } },
+        { label: "Trust the original draft", cost: 0, detail: "Free, but the climax stays weird.", run: (g) => { g.film.quality = clamp(g.film.quality - 6, 5, 100); g.log("The climax stays, unchanged, faintly smelling of a conference room. Quality −6.", "bad"); } }
       ]
     },
     {
-      id: "tabloid", title: "Tabloid Rumor Mill",
-      text: "A rag has a photo of the lead and co-lead 'sharing a cab'. The story is running out of control.",
+      id: "tabloid", title: "The Cab Photo",
+      text: "A rag has a photo of the lead and co-lead 'sharing a cab'. The story is running out of control, and everyone is very interested in what you do about it.",
       choices: [
-        { label: "Release a spin statement", cost: 0.5, detail: "Buzz +6 — they love a scandal.", run: (g) => { g.film.buzz = clamp(g.film.buzz + 6, 0, 150); g.log("'Just coworkers' — the statement works. Buzz +6. Hollywood runs on this.", "gold"); } },
+        { label: "Release a spin statement", cost: 0.5, detail: "Buzz +6 — they love a scandal.", run: (g) => { g.film.buzz = clamp(g.film.buzz + 6, 0, 150); g.log("'Just coworkers' — it works. Buzz +6. Hollywood runs on this.", "gold"); } },
         { label: "Say nothing", cost: 0, detail: "Let it die... or grow.", run: (g) => {
           if (Math.random() < 0.5) { g.film.buzz = clamp(g.film.buzz + 4, 0, 150); g.log("The rumor peaked on its own. Buzz +4.", "good"); }
-          else g.log("The story faded. The tabloid moved on to a reality show.", "good");
+          else g.log("The story fizzled. The tabloid is now covering a reality show.", "good");
         } }
       ]
     },
     {
-      id: "franchise", title: "The Studio Call",
-      text: "A distribution executive has called to suggest 'franchise elements'. A lot of them. Some of them CGI.",
+      id: "franchise", title: "The Call From the Studio",
+      text: "A distribution executive has called to suggest 'franchise elements'. A lot of them. Some of them CGI. The hand reaching out of the ocean has already been sent over for reference.",
       choices: [
         { label: "Keep the film pure", cost: 0, detail: "Reputation +2, quality +3 if your director is strong.", run: (g) => {
           g.studio.reputation = clamp(g.studio.reputation + 2, 0, 100);
@@ -231,11 +334,55 @@ const DATA = (() => {
       ]
     },
     {
-      id: "equipment", title: "The Lens Set Is Lost",
+      id: "equipment", title: "The Lens Set Got Towed",
       text: "A grip truck was towed overnight and the bespoke lens set went with it. The D.P. is quiet, which is the worst kind of quiet.",
       choices: [
         { label: "Rent a matching set", cost: 0.9, detail: "No visual compromise.", run: (g) => { g.log("The replacement lenses are indistinguishable. The D.P. exhales for the first time in two days.", "good"); } },
-        { label: "Adapt the look", cost: 0, detail: "Quality −4, but a strange new aesthetic emerges.", run: (g) => { g.film.quality = clamp(g.film.quality - 4, 5, 100); g.log("The D.P. improvises a new look. Critics will either love it or write about it in the next decade.", "bad"); } }
+        { label: "Adapt the look", cost: 0, detail: "Quality −4, but a strange new aesthetic emerges.", run: (g) => { g.film.quality = clamp(g.film.quality - 4, 5, 100); g.log("The D.P. improvises a new look. Critics will either love it or write about it for the next decade.", "bad"); } }
+      ]
+    },
+    {
+      id: "catering", title: "The Catering Memo",
+      text: "Catering has been described, in a memo, as 'a growth area'. Half the cast is running on gas station coffee and it is showing.",
+      choices: [
+        { label: "Order the good stuff", cost: 1.0, detail: "Truffle sandwiches by lunch. Quality +5.", run: (g) => { g.film.quality = clamp(g.film.quality + 5, 5, 100); g.log("The truffle sandwich appears on set by lunch. The take improves by 5, and so does the mood.", "good"); } },
+        { label: "Trust the gas station coffee", cost: 0, detail: "Free. It has come this far, hasn't it?", run: (g) => {
+          if (Math.random() < 0.5) g.log("They somehow make it work. The coffee was fine. Nothing happened.", "good");
+          else { g.film.quality = clamp(g.film.quality - 5, 5, 100); g.log("The 3pm energy crash lands squarely in the middle of the emotional climax. Quality −5.", "bad"); }
+        } }
+      ]
+    },
+    {
+      id: "method", title: "The Method Is Working",
+      text: "Your lead is 'in it' in a way the craft services department is not entirely comfortable with. They have started a petition. It is a nice one.",
+      choices: [
+        { label: "Gently pull them out", cost: 0.8, detail: "Dinner, a warm bath, a kind word. Quality +4.", run: (g) => { g.film.quality = clamp(g.film.quality + 4, 5, 100); g.log("The character returns, gently, on schedule. The petition is quietly shredded.", "good"); } },
+        { label: "Let the method method", cost: 0, detail: "It has worked for other people. Probably.", run: (g) => {
+          if (Math.random() < 0.5) { g.film.quality = clamp(g.film.quality + 6, 5, 100); g.log("The method pays off. The scene is terrifying, and it is not the character's fault. Quality +6.", "gold"); }
+          else { g.film.quality = clamp(g.film.quality - 6, 5, 100); g.log("The method has outlived the film. Wrapping the take takes forty minutes and one lawyer. Quality −6.", "bad"); }
+        } }
+      ]
+    },
+    {
+      id: "wiki", title: "The Fan Wiki",
+      text: "A fan group has launched a 4,000-page 'what we would have changed' wiki. The studio finds this 'interesting'.",
+      choices: [
+        { label: "Release a calm statement", cost: 0.6, detail: "Kind, measured, and it quotes the wiki once. Buzz +5.", run: (g) => { g.film.buzz = clamp(g.film.buzz + 5, 0, 150); g.log("The statement is calm, kind, and quotes the fan wiki exactly once. Buzz +5.", "good"); } },
+        { label: "Read the wiki", cost: 0, detail: "4,000 pages. Someone has to.", run: (g) => {
+          if (Math.random() < 0.5) { g.film.quality = clamp(g.film.quality + 3, 5, 100); g.log("One of the 4,000 pages is, shockingly, good advice. Quality +3.", "good"); }
+          else { g.film.quality = clamp(g.film.quality - 3, 5, 100); g.log("4,000 pages. The team now sleeps with the notebook closed. Quality −3.", "bad"); }
+        } }
+      ]
+    },
+    {
+      id: "score-leak", title: "The Score Leak",
+      text: "Someone has uploaded a 90-second clip of the score. It is lovely. It is also the entire third act, compressed into 90 seconds.",
+      choices: [
+        { label: "Lean into it", cost: 0.5, detail: "Let the mystery marinate. Buzz +7.", run: (g) => { g.film.buzz = clamp(g.film.buzz + 7, 0, 150); g.log("The 90 seconds is everywhere now, and everyone wants to know how the movie ends. Buzz +7.", "gold"); } },
+        { label: "Request a takedown", cost: 0.6, detail: "Legal is confident. Legal is usually confident.", run: (g) => {
+          if (Math.random() < 0.5) { g.film.buzz = clamp(g.film.buzz + 3, 0, 150); g.log("The takedown works and the mystery survives to opening weekend. Buzz +3.", "good"); }
+          else { g.film.buzz = Math.max(0, g.film.buzz - 4); g.log("The file outlives every takedown. The mystery is gone, but the film is fine. Buzz −4.", "bad"); }
+        } }
       ]
     }
   ];
@@ -282,7 +429,7 @@ const DATA = (() => {
     "Documentary": ["Mill", "Strike", "Ballot", "River", "Ledger", "Front Porch"]
   };
 
-  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE };
+  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, CRITICS, REVIEW_QUOTES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS };
 })();
 
 // ---------- procedural generators ----------
@@ -292,17 +439,24 @@ const DATA = (() => {
 
   D.makeTitle = (genre) => {
     for (let i = 0; i < 24; i++) {
-      let t;
+      const n = () => D.pick(D.nouns[genre]);
       const r = Math.random();
-      if (r < 0.45) t = `${D.pick(D.adjectives[genre])} ${D.pick(D.nouns[genre])}`;
-      else if (r < 0.7) t = `The ${D.pick(D.nouns[genre])} ${D.pick(["of", "in", "at", "for"]) === "of" ? "of " + D.pick(D.nouns[genre]) : " " + D.pick(D.nouns[genre])}`;
-      else t = `${D.pick(D.nouns[genre])}: ${D.pick(D.extraWords)}`;
+      let t;
+      if (r < 0.35) t = `${D.pick(D.adjectives[genre])} ${n()}`;
+      else if (r < 0.5) t = `The ${n()}`;                    // the single-noun title
+      else if (r < 0.62) t = `The ${n()} of ${n()}`;
+      else if (r < 0.74) t = `${n()}: ${D.pick(D.extraWords)}`;
+      else if (r < 0.87) t = `Infinite ${n()}`;             // it is a very big franchise
+      else t = `${n()} ${D.randInt(2, 4)}`;                // the sequel nobody asked for
       if (!usedTitles.has(t)) { usedTitles.add(t); return t; }
     }
     return D.pick(D.nouns[genre]) + " II";
   };
 
   const usedNames = new Set();
+  const usedParodies = new Set();
+  const usedParodyDirs = new Set();
+
   D.makePerson = () => {
     for (let i = 0; i < 40; i++) {
       const n = `${D.pick(D.FIRST_NAMES)} ${D.pick(D.LAST_NAMES)}`;
@@ -333,6 +487,16 @@ const DATA = (() => {
   ];
 
   D.makeActor = (roleIndex) => {
+    // recognizable parodies, more likely in bigger roles; each appears at most once per session
+    const pChance = roleIndex === 0 ? 0.55 : roleIndex === 1 ? 0.45 : 0.3;
+    if (Math.random() < pChance) {
+      const free = D.PARODY_STARS.filter(p => !usedParodies.has(p.name));
+      if (free.length) {
+        const p = D.pick(free);
+        usedParodies.add(p.name);
+        return { name: p.name, tier: p.tier, draw: p.draw, social: p.social, cost: p.cost, quip: p.quip };
+      }
+    }
     // role 0 = lead, 1 = co-lead, 2 = supporting — higher roles skew toward bigger talent
     const tiers = TIER_TABLE.slice();
     const roll = Math.random();
@@ -352,6 +516,14 @@ const DATA = (() => {
   };
 
   D.makeDirector = () => {
+    if (Math.random() < 0.55) {
+      const free = D.PARODY_DIRECTORS.filter(p => !usedParodyDirs.has(p.name));
+      if (free.length) {
+        const p = D.pick(free);
+        usedParodyDirs.add(p.name);
+        return { name: p.name, style: p.style, score: p.score, cost: p.cost };
+      }
+    }
     return {
       name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
       style: D.pick(D.DIRECTOR_STYLE),
@@ -403,6 +575,18 @@ const DATA = (() => {
     }
     return rivals;
   };
+
+  D.makeReviews = (quality, buzz) => {
+    const picks = D.shuffle(D.CRITICS).slice(0, 4);
+    const list = picks.map((c) => {
+      const score = Math.round(D.clamp(quality + (buzz - 50) * 0.25 + c.bias + D.rand(-12, 12), 2, 100));
+      const bucket = score >= 85 ? "rave" : score >= 70 ? "positive" : score >= 55 ? "mixed" : score >= 40 ? "pan" : "torch";
+      return { name: c.name, outlet: c.outlet, score, quote: D.pick(D.REVIEW_QUOTES[bucket]) };
+    });
+    const avg = Math.round(list.reduce((s, r) => s + r.score, 0) / list.length);
+    return { list, avg };
+  };
+  D.criticLabel = (avg) => avg >= 80 ? "RAVES" : avg >= 65 ? "POSITIVE" : avg >= 50 ? "MIXED" : avg >= 35 ? "COLD" : "INCENDIARILY NEGATIVE";
 
   D.weekGross = (rival, weekIndex, repBoost, legs = 0) => {
     const decay = D.clamp(0.62 + 0.32 * rival.q + legs, 0.5, 0.9);

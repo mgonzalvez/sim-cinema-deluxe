@@ -7,6 +7,18 @@
 const Poster = (() => {
   const W = 300, H = 420;
 
+  // tongue-in-cheek corner stickers, one per poster
+  const BADGES = {
+    "Action":      ["EXPLOSIONS! (ALL FAKE, ALL EXPLODED)", "NO ACTORS WERE HARMED (YET)"],
+    "Comedy":      ["STILL FUNNY, ALLEGEDLY", "BRING SNACKS AND A DOCTOR"],
+    "Drama":       ["AWARDS SEASON APPROACHES", "BASED ON A TRUE FEELING"],
+    "Horror":      ["DON'T WATCH ALONE (DO)", "NOW WITH 10% MORE ATTIC"],
+    "Sci-Fi":      ["NOW IN 4DX (FAN OPTIONAL)", "CONTAINS THE FUTURE (MILD)"],
+    "Romance":     ["BASED ON A TRUE FEELING (ONE)", "TWO TRUCKS. ONE SPOT."],
+    "Animation":   ["NO KITTENS WERE HARMED", "SUITABLE FOR THE WHOLE FAMILY, EXCEPT THE CAT"],
+    "Documentary": ["BASED ON A TRUE STORY (ONE)", "ONE TUESDAY. ONE CAMERA."]
+  };
+
   function shade(hex, amt) {
     const n = parseInt(hex.slice(1), 16);
     let r = (n >> 16) + amt, g = ((n >> 8) & 0xff) + amt, b = (n & 0xff) + amt;
@@ -21,8 +33,9 @@ const Poster = (() => {
       case "Action": {
         // burst
         ctx.translate(cx, cy);
-        for (let i = 0; i < 12; i++) {
-          ctx.rotate(Math.PI / 6);
+        const spikes = 9 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < spikes; i++) {
+          ctx.rotate(Math.PI * 2 / spikes);
           ctx.fillStyle = c[1];
           ctx.globalAlpha = 0.85;
           ctx.beginPath();
@@ -130,7 +143,12 @@ const Poster = (() => {
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W * 0.7, 0); ctx.lineTo(W * 0.2, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
     ctx.restore();
 
+    ctx.save();
+    ctx.translate(W / 2, H * 0.42);
+    ctx.rotate((Math.random() - 0.5) * 0.08);
+    ctx.translate(-W / 2, -H * 0.42);
     drawMotif(ctx, genre, c);
+    ctx.restore();
 
     // film-strip frame
     ctx.fillStyle = "rgba(0,0,0,0.55)";
@@ -139,11 +157,27 @@ const Poster = (() => {
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     for (let x = 8; x < W - 6; x += 22) { ctx.fillRect(x, 5, 12, 8); ctx.fillRect(x, H - 13, 12, 8); }
 
+    // corner sticker
+    const badges = BADGES[genre] || BADGES.Documentary;
+    const label = (DATA.pick(badges) || "").toUpperCase();
+    ctx.save();
+    ctx.translate(W - 16, 42);
+    ctx.rotate(0.12);
+    ctx.font = '700 11px "Bebas Neue", sans-serif';
+    const bw = ctx.measureText(label).width + 18;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(-bw / 2, -12, bw, 24);
+    ctx.strokeStyle = "rgba(240,180,41,0.9)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-bw / 2, -12, bw, 24);
+    ctx.fillStyle = "#f0b429";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, 0, 1);
+    ctx.restore();
+
     // title
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.65)";
-    ctx.font = '13px "Space Grotesk", sans-serif';
-    ctx.fillText("A " + (studioName || "New Studio") + " PICTURE", W / 2, H - 52);
     ctx.fillStyle = "#fff";
     ctx.font = '700 44px "Bebas Neue", sans-serif';
     const words = title.split(" ");
@@ -152,7 +186,20 @@ const Poster = (() => {
     else if (words.length % 2 === 0) lines = [words.slice(0, words.length / 2).join(" "), words.slice(words.length / 2).join(" ")];
     else lines = [words.slice(0, Math.ceil(words.length / 2) - 1).join(" "), words.slice(Math.ceil(words.length / 2) - 1).join(" ")];
     ctx.textBaseline = "alphabetic";
-    lines.forEach((ln, i) => ctx.fillText(ln.toUpperCase(), W / 2, H - 84 + i * 40));
+    lines.forEach((ln, i) => ctx.fillText(ln.toUpperCase(), W / 2, (lines.length === 1 ? H - 100 : H - 132) + i * 40));
+
+    // studio line + the tiny credit block everyone pretends to read
+    const short = (n) => { const p = String(n).split(" "); return p[0][0] + ". " + p[p.length - 1]; };
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.font = '13px "Space Grotesk", sans-serif';
+    ctx.fillText("A " + (studioName || "New Studio") + " PICTURE", W / 2, H - 62);
+    const pd = DATA.pick(DATA.PARODY_DIRECTORS);
+    const st1 = DATA.pick(DATA.PARODY_STARS);
+    const pool = DATA.PARODY_STARS.filter((s) => s !== st1);
+    const st2 = DATA.pick(pool.length ? pool : DATA.PARODY_STARS);
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = '9px "Space Grotesk", sans-serif';
+    ctx.fillText(`BY ${short(pd.name).toUpperCase()}   STARRING ${short(st1.name).toUpperCase()} AND ${short(st2.name).toUpperCase()}`, W / 2, H - 48);
 
     // grain
     ctx.globalAlpha = 0.06;

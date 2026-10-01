@@ -304,11 +304,12 @@ const GAME = (() => {
 
     if (G.totalProduction() >= 99) {
       f.phases = { sets: 100, filming: 100, vfx: 100, music: 100 };
-      G.log("Principal photography wrapped. The film is ready to release.", "good");
+      G.log("Principal photography wrapped. The film is ready to release.", "story");
     }
 
     if (!S.pendingEvent && S.eventPool.length > 0 && f.week < f.totalWeeks && Math.random() < 0.55) {
       S.pendingEvent = D.EVENTS[S.eventPool.pop()];
+      G.log(S.pendingEvent.title + " — the crew is summoned to a meeting.", "story");
     }
     G.addDays(7);
     G.save();
@@ -352,7 +353,7 @@ const GAME = (() => {
     if (!t) return;
     f.tagline = t.line;
     f.taglineQ = t.q;
-    G.log("Changed tag line.", "gold");
+    G.log(`The tagline hits the papers: “${t.line}”`, t.q >= 7 ? "story" : t.q <= 3 ? "bad" : "");
     G.save();
   };
 
@@ -366,7 +367,7 @@ const GAME = (() => {
     const hype = Math.max(0, (f.buzz / 100) - (f.quality / 100) - 0.5);
     const score = Math.round(D.clamp(f.quality + f.taglineQ * 2 - hype * 15 + D.rand(-8, 8), 5, 100));
     f.screenScore = score;
-    G.log(`Test screening: the audience gives it ${score}/100.`, score >= 70 ? "good" : score < 45 ? "bad" : "");
+    G.log(`Test screening: the audience gives it ${score}/100.`, score >= 70 ? "story" : score < 45 ? "bad" : "");
     G.save();
     return true;
   };
@@ -411,21 +412,34 @@ const GAME = (() => {
 (function (G) {
   const D = G._internal.D;
 
+  // ---------- advance reviews (the critics weigh in before opening) ----------
+  G.critique = function () {
+    const S = G.S, f = S.film;
+    if (!f || f.reviews) return;
+    const r = D.makeReviews(f.quality, f.buzz);
+    f.reviews = r;
+    const delta = r.avg >= 80 ? 10 : r.avg >= 65 ? 6 : r.avg >= 50 ? 0 : r.avg >= 35 ? -2 : -5;
+    f.buzz = Math.round(D.clamp(f.buzz + delta, 0, 150) * 10) / 10;
+    G.log(`Advance reviews are in: ${D.criticLabel(r.avg)} (avg ${r.avg}/100). ${delta > 0 ? `Buzz +${delta}.` : delta < 0 ? `Buzz ${delta}.` : "Buzz unchanged."}`, delta >= 5 ? "story" : delta < 0 ? "bad" : "");
+    G.save();
+  };
+
   // ---------- release & box office ----------
   G.release = function () {
     const S = G.S, f = S.film;
     if (!G.canRelease()) return;
+    G.critique();
     const audience = D.GENRES[f.genre].audience; // reputation boost applied in weekGross
     const R = f.quality / 100;
     const opening = audience * (1 + 5.5 * (f.buzz / 100)) * (0.55 + 0.55 * R) * D.rand(0.9, 1.1);
     const legs = D.GENRES[f.genre].legs || 0;
     S.boxoffice = {
-      my: { title: f.title, genre: f.genre, studio: S.studio.name, q: R, legs, potential: opening, last: 0, total: 0 },
+      my: { title: f.title, genre: f.genre, studio: S.studio.name, q: R, legs, potential: opening, last: 0, total: 0, critics: f.reviews ? f.reviews.avg : 0 },
       rivals: D.makeRivals(R, f.genre),
-      week: 0, done: false, curve: []
+      week: 0, done: false, curve: [], firstLogged: false
     };
     S.state = "boxoffice";
-    G.log(`"${f.title}" opens in theaters. The marquee lights come on.`, "gold");
+    G.log(`"${f.title}" opens in theaters. The marquee lights come on.`, "story");
     G.save();
   };
 
@@ -437,6 +451,10 @@ const GAME = (() => {
     D.weekGross(bo.my, bo.week - 1, repBoost, bo.my.legs || 0);
     for (const r of bo.rivals) D.weekGross(r, bo.week - 1, 1, r.legs || 0);
     bo.curve.push(bo.my.last);
+    if (!bo.firstLogged && G.boRank() === "#1") {
+      bo.firstLogged = true;
+      G.log(`"${bo.my.title}" is number one in the country. The marquee doesn't quite fit it.`, "story");
+    }
     G.addDays(7);
     if (bo.my.last < 1.0 || bo.week >= 14) bo.done = true;
     G.save();
@@ -477,9 +495,11 @@ const GAME = (() => {
       title: f.title, genre: f.genre, quality: f.quality, gross, costs: totalCosts,
       profit, margin, grade, repDelta, weeks: bo.week, poster: f.poster,
       screened: f.screened, screenScore: f.screenScore, tagline: f.tagline,
+      critics: f.reviews ? f.reviews.avg : null,
       debt: debt, totalCosts: totalCosts, costs: f.costs
     };
     if (debt > 0) G.log(`The studio repays $${debt}M of the credit line from the box office.`, "bad");
+    G.log(`"${f.title}" closes: ${D.money(gross)}${profit >= 0 ? " in the black." : " in the red."}`, "story");
     G.logFilm(f, { gross, profit, grade, weeks: bo.week });
     S.film = null;
     S.boxoffice = null;

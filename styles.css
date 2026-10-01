@@ -295,10 +295,26 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 .messages { flex: 1; min-height: 220px; max-height: 320px; overflow-y: auto; font-size: 12.5px; display: flex; flex-direction: column; gap: 7px; padding-right: 6px; }
 .messages .msg { background: var(--bg2); border-left: 3px solid var(--line); border-radius: 6px; padding: 7px 10px; animation: msg-in 0.3s ease both; }
 .messages .msg .m-date { font-size: 10px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+.messages .msg.dim { opacity: 0.55; font-size: 12px; }
 .messages .msg.good { border-left-color: var(--green); }
 .messages .msg.bad { border-left-color: var(--red); }
-.messages .msg.gold { border-left-color: var(--gold); }
+.messages .msg.gold, .messages .msg.story { border-left-color: var(--gold); }
+.messages .msg.big {
+  border: 1px solid rgba(240, 180, 41, 0.45); border-left: 3px solid var(--gold);
+  background: linear-gradient(90deg, rgba(240, 180, 41, 0.10), rgba(240, 180, 41, 0.03));
+  color: var(--gold-soft); font-weight: 600; font-size: 13.5px;
+}
+.messages .msg .m-star { color: var(--gold); margin-right: 2px; }
 @keyframes msg-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+
+/* advance reviews */
+.review-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+.review-card { background: var(--bg2); border: 1px solid var(--line-soft); border-radius: 8px; padding: 12px; }
+.review-card .rv-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.review-card .rv-name { font-weight: 700; letter-spacing: 0.4px; }
+.review-card .rv-score { font-size: 12px; font-weight: 700; }
+.review-card .rv-outlet { font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 2px 0 8px; }
+.review-card .rv-quote { font-size: 13px; line-height: 1.5; color: var(--text); font-style: italic; }
 
 .prod-controls {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -440,4 +456,5 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
   .speed-ctl { margin-left: 0; width: 100%; justify-content: flex-end; }
   .budget-display span { font-size: 44px; }
   .topbar-studio { display: none; }
+  .review-grid { grid-template-columns: 1fr; }
 }

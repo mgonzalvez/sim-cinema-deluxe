@@ -13,9 +13,9 @@ research background and player-facing docs.
 |---|---|
 | `index.html` | All 9 screens (title, studio, script, budget, casting, production, box office, results, game over) + one shared modal |
 | `styles.css` | Cinematic theme (marquee gold/velvet red, film grain, responsive) |
-| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals) + box office math (`weekGross`) |
+| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
-| `js/poster.js` | Procedural poster art on canvas → dataURL (genre-specific motifs) |
+| `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
 | `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API |
 | `js/ui.js` | UI layer: screen router, all 9 screens, modals (event/tagline/screening/help), autoplay timers, Top-10 table + SVG curve, save/continue |
 | `tools/balance-test.js` | Headless smoke + 300-film random + 200-film skilled simulations (Node VM) |
@@ -62,7 +62,14 @@ bump the key if the shape changes).
   career features: `filmLog` (up to 12 films, incl. cancelled) persisted in the
   save blob; `simcinema_legacy_v1` all-time-best career record ("hall of fame"
   line on title screen, "CAREER" note on results, full recap table on game
-  over).
+  over);
+  advance reviews — 4 critics with individual biases (`D.makeReviews`) weigh in
+  on release (consensus shifts buzz ±5..10 before opening); message feed
+  hierarchy ("story"/"gold" kinds → big ★ gold cards, regular dimmed) so
+  production weeks read as a visible procedural story.
+- **Balance note**: the critic step is the newest risk axis; after adding it,
+  strong play measured ≈ 85% hit films / ~75–80% of 8-film careers survive
+  (was 87%/93%) — still within design intent (strong play wins, sloppy loses).
 - **Note**: `styles.css` needs `[hidden] { display: none !important; }` —
   author `display` rules (`.topbar`, `.modal-backdrop`) override the UA
   stylesheet's `[hidden]` rule, so the topbar/modal render on every screen
@@ -71,7 +78,9 @@ bump the key if the shape changes).
 ## Next Steps (ordered)
 
 1. ~~UI layer + browser verification~~ done; ~~git init + push~~ done;
-   ~~career log + hall of fame + game-over recap~~ done (commit 396d44a).
+   ~~career log + hall of fame + game-over recap~~ done (commit 396d44a);
+   ~~humor pass (parody personas, 12 events, title templates, poster stickers)
+   + advance reviews + story-message highlighting~~ done.
 2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass.
 
