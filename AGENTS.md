@@ -17,7 +17,7 @@ research background and player-facing docs.
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
 | `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
 | `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API |
-| `js/ui.js` | UI layer: screen router, all 9 screens, modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed |
+| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed |
 | `tools/balance-test.js` | Headless smoke + 300-film random + 200-film skilled simulations (Node VM) |
 | `tools/career-test.js` | 100 careers × 8 films with a strong strategy |
 | `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening/reviews modals, terminate + bankruptcy + game-over branches, save/continue across a page reload. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed) |
@@ -62,7 +62,8 @@ when the HQ metagame landed — safe to bump again if the shape changes).
   Board approval 0 = fired (one reprieve per career; see HQ section).
 - Quality = `(0.55*scriptQuality + 0.45*castScore) * budgetFactor` (±event
   deltas, +8 reshoot).
-- Opening = `audience * (1 + 5.5*buzz/100) * (0.55 + 0.55*R) * rand(0.9,1.1)`;
+- Opening = `audience * max(0.35, 1 + 5.5*netBuzz/100) * (0.55 + 0.55*R)
+  * rand(0.9,1.1)` — net buzz can genuinely hurt (see dual-buzz bullet);
   weekly decay `0.62 + 0.32*R + genre.legs` (clamped 0.5–0.9); curve ends at
   gross < $1M or week 14.
 - **Dual buzz meters** (`f.buzzPos`/`f.buzzNeg`, 0–150 each): each mean-reverts to
@@ -100,9 +101,11 @@ when the HQ metagame landed — safe to bump again if the shape changes).
   board w/ fire branch + one reprieve, genre trends, gossip feed) backed by
   `prestige`/`bank`/`board`/`trends`/`awards`/`repHistory`/`news` state;
   save key bumped to `simcinema_save_v2`.
-- **Balance note**: the critic step is the newest risk axis; after adding it,
-  strong play measured ≈ 85% hit films / ~75–80% of 8-film careers survive
-  (was 87%/93%) — still within design intent (strong play wins, sloppy loses).
+- **Balance note**: the newest risk axes are the critic step and the HQ layer
+  (bank trust, fired branch, trends). Current strong play measures ≈ 83–86%
+  hit films / 78–86% of 8-film careers survive with $110–125M avg final funds
+  (baseline before those was 87%/93%) — still within design intent (strong
+  play wins, sloppy loses). Re-measure after any balance change.
 - **Note**: `styles.css` needs `[hidden] { display: none !important; }` —
   author `display` rules (`.topbar`, `.modal-backdrop`) override the UA
   stylesheet's `[hidden]` rule, so the topbar/modal render on every screen
@@ -117,6 +120,51 @@ when the HQ metagame landed — safe to bump again if the shape changes).
    ~~Studio Headquarters metagame (5 tabs, fire branch, trends, prestige)~~ done.
 2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass.
+
+## Enhancement Suggestions (backlog)
+
+Design guardrail for everything below: keep the balance targets
+(~85% hit / 75–80% career survival / $100–130M avg) and the loving-parody
+tone; run `tools/balance-test.js --smoke && tools/career-test.js &&
+tools/browser-test.js` after each build; bump the save key on shape changes.
+
+### Ready to build (small, mostly cosmetic-safe)
+
+1. **Office toys** (your deferred point 8): one-time HQ purchases persisted as
+   `S.toys []`, shown on the dashboard as a little shelf — publicist (negative
+   buzz blips −10–20%), espresso machine (weekly production quality +0.5),
+   office plant (bad-event odds −10–15%). $1–3M each; 2–3 toys is plenty.
+   Keep effects gentle so the board/buzz levers stay primary.
+2. **Bank rescue injection**: at bank trust ≥ 85, the HQ offers a one-time
+   $20M infusion in exchange for ~10% of next gross — a comeback lever that
+   rewards good stewardship, never exploitable twice.
+3. **Sequel rights / IP flag**: an S or A+ film sets a sequellable IP; the next
+   dev roll can offer the franchise slot (audience +20% but quality capped,
+   one use per IP). Deepens the trophy-room payoff.
+4. **Retire button**: HQ action to end the career on your own terms →
+   game-over ("you walked away rich") + legacy line. Gives a non-defeat exit
+   and a reason to stop at peak prestige.
+5. **Career awards ceremony**: at the 8-film career end, an extra game-over
+   beat tallying honors/popcorns of the run (Best Picture, Popcorn of the
+   Year) — a satisfying cap on the trophy room.
+6. **Rival deep-dive**: gossip lines that reveal which rival title will collide
+   with your release window (and its genre heat), making the chart strategic
+   rather than decorative.
+7. **Trend forecaster**: the trends tab shows next-film projected heat (±
+   uncertainty band) so players can plan — watch that it doesn't flatten the
+   risk of guessing.
+
+### Bigger ideas (later)
+
+- **First-time soft difficulty** (higher starting trust, gentle board) with a
+  normal-difficulty toggle after the first career.
+- **Shareable career reel**: a canvas card of your 8 posters + stats for the
+  game-over screen (poster.js machinery already exists).
+- **Accessibility pass**: keyboard flow through casting grids, ARIA on meters,
+  reduced-motion grain.
+- **Sound design pass**: HQ stinger, a boardroom gavel for the firing.
+- **"Same season" challenge**: URL-encoded rival-board import/export for a
+  shared 10-slot chart matchup.
 
 ## Conventions
 

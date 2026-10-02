@@ -96,9 +96,10 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
 
 ### What's deliberate
 
-- **Credit line, not soft money**: the studio can draw down (8M + reputation
-  scaling), debt is repaid from box office at the end, and going 20% past the
-  limit ends the game. This is how a small studio makes a big picture.
+- **Credit line, not soft money**: the bank's trust (not your reputation) sets
+  your credit line — hit films earn it, bombs cost it; debt is repaid from box
+  office at the end, and going 20% past the limit ends the game. This is how a
+  small studio makes a big picture.
 - **Genres have personalities**: Action opens hot but decays fast; Dramas and
   Documentaries open small but have "legs"; Animation has family audiences.
 - **Everything is procedural**: titles, cast, taglines, rivals, critics, even
@@ -111,4 +112,12 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
   parodies of real film-industry figures (all fictional names), and the events,
   taglines, and critics lean into the industry's best jokes.
 
-See `AGENTS.md` for architecture, current status, and next steps.
+### Ideas on the cutting-room floor
+
+The town has room to grow: office toys in your HQ (a publicist who files for
+quiet, an espresso machine that helps), a rescue injection from a bank that
+trusts you, sequel rights on a big hit, a career awards ceremony at the end of
+your run, and the option to retire on your own terms. Full backlog, with the
+balance guardrails, lives in `AGENTS.md`.
+
+See `AGENTS.md` for architecture, current status, and the enhancement backlog.
