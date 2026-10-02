@@ -46,6 +46,68 @@ const UI = (() => {
     $("#tb-film").textContent = "#" + n;
   }
 
+  // ---------- the boardroom: advisory notes ----------
+  const HINT_TOPICS = { script: "script", budget: "budget", casting: "casting", production: "production", boxoffice: "boxoffice", results: "results", hq: "hq" };
+  const hintState = { sig: {}, time: {} };
+  const HINT_MIN_GAP = 1100; // ms between two notes on the same screen
+
+  // a "signature" of the situation: a note is re-rolled only when it changes
+  function hintSig(topic) {
+    const S = GAME.S, f = GAME.film;
+    switch (topic) {
+      case "script": return S.selectedScript + ":" + S.rewrites;
+      case "budget": return Math.round(S.budget * 0.5);
+      case "casting": return JSON.stringify(S.castPicks || {});
+      case "production":
+        if (!f) return "none";
+        return [f.week, f.buzzNeg >= 10 ? 1 : 0, f.buzzPos >= 65 ? 1 : 0, f.buzzPos < 25 ? 1 : 0,
+          GAME.totalProduction() >= 60 ? 1 : 0, f.screened ? f.screenScore : 0, GAME.canRelease() ? 1 : 0].join(",");
+      case "boxoffice": return GAME.boxoffice ? GAME.boxoffice.week : "none";
+      default: return "static";
+    }
+  }
+
+  function renderHint(topic, force) {
+    const slot = document.querySelector('.hint-slot[data-topic="' + topic + '"]');
+    if (!slot) return;
+    if (!GAME.advisorsOn || GAME.state === "title" || GAME.state === "gameover") {
+      slot.hidden = true; slot.innerHTML = ""; return;
+    }
+    const sig = hintSig(topic);
+    const fresh = sig === hintState.sig[topic];
+    if (fresh && !force) {
+      if (Date.now() - (hintState.time[topic] || 0) < HINT_MIN_GAP) return; // still mid-note
+      if (slot.hidden) return; // already showing the note for this situation
+    }
+    const h = GAME.hint(topic);
+    if (!h) return;
+    hintState.sig[topic] = sig;
+    hintState.time[topic] = Date.now();
+    const e = h.exec;
+    const quote = esc(h.text).replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    slot.hidden = false;
+    slot.innerHTML = `
+      <div class="hintbar" style="--exec:${e.color}">
+        <div class="hb-avatar">${e.mono}</div>
+        <div class="hb-body">
+          <div class="hb-name">${esc(e.name)}<span class="hb-title">${esc(e.title)}</span></div>
+          <div class="hb-quote">“${quote}”</div>
+        </div>
+        <span class="hb-pin" aria-hidden="true">📌</span>
+      </div>`;
+    SFX.play.pop();
+  }
+
+  function syncAdvisorBtn() {
+    const b = $("#btn-advisors");
+    if (!b) return;
+    const on = GAME.advisorsOn;
+    b.classList.toggle("active", on);
+    b.title = on
+      ? "Studio advisors: on — the office passes notes when things change"
+      : "Studio advisors: off — click to hear the office talk";
+  }
+
   // ---------- modal ----------
   let modalOpen = false, modalClosable = true;
   function openModal(title, bodyHTML, closable = true) {
@@ -98,6 +160,7 @@ const UI = (() => {
     }
     $("#topbar").hidden = st === "title";
     updateTopbar();
+    syncAdvisorBtn();
     if (RENDERERS[st]) RENDERERS[st]();
     if (st === "production") syncProdAuto();
     if (st === "boxoffice") syncBoAuto();
@@ -168,6 +231,7 @@ const UI = (() => {
         SFX.play.select();
         $$(".script-card").forEach((x) => x.classList.toggle("selected", x === c));
         $("#btn-script-go").disabled = false;
+        renderHint("script");
       });
     });
   }
@@ -184,6 +248,7 @@ const UI = (() => {
     if (+r.value !== GAME.S.rewrites) r.value = GAME.S.rewrites;
     updateRewriteLabel();
     $("#btn-script-go").disabled = GAME.S.selectedScript == null;
+    renderHint("script");
   };
 
   // ============================================================
@@ -216,6 +281,7 @@ const UI = (() => {
     const slider = $("#budget-slider");
     if (+slider.value !== GAME.S.budget) slider.value = GAME.S.budget;
     drawBudget();
+    renderHint("budget");
   };
 
   // ============================================================
@@ -273,12 +339,13 @@ const UI = (() => {
         SFX.play.select();
         $$('#casting-grid .talent-card[data-slot="' + slot + '"]').forEach((x) => x.classList.toggle("selected", x === c));
         updateCastSummary();
+        renderHint("casting");
       });
     });
     updateCastSummary();
   }
 
-  RENDERERS.casting = renderCasting;
+  RENDERERS.casting = function () { renderCasting(); renderHint("casting"); };
 
   // ============================================================
   // PRODUCTION
@@ -371,6 +438,7 @@ const UI = (() => {
     renderPhases();
     renderMessages();
     updateProdControls();
+    renderHint("production");
   }
 
   RENDERERS.production = renderProduction;
@@ -596,6 +664,7 @@ const UI = (() => {
     renderBoTable();
     drawBoChart();
     $("#btn-bo-next").disabled = GAME.boDone;
+    renderHint("boxoffice");
   }
 
   function boNext() {
@@ -725,6 +794,7 @@ const UI = (() => {
 
   RENDERERS.hq = function () {
     const S = GAME.S;
+    GAME._hintTab = hqTab;
     $("#hq-sub").textContent = `${S.studio.name} · between pictures · ${GAME.dateStr()}`;
     $("#hq-tabs").innerHTML = HQ_TABS.map(([id, label]) =>
       `<button class="hq-tab ${id === hqTab ? "active" : ""}" data-tab="${id}">${label}</button>`).join("");
@@ -732,10 +802,12 @@ const UI = (() => {
       hqTab = b.dataset.tab;
       SFX.play.select();
       RENDERERS.hq();
+      renderHint("hq");
     }));
     $("#hq-body").innerHTML = HQ_RENDER[hqTab]();
     if (hqTab === "dashboard") drawRepCurve();
     SFX.play.click();
+    renderHint("hq");
   };
 
   // ============================================================
@@ -771,6 +843,7 @@ const UI = (() => {
     notes.push(`<div class="res-note">Reputation ${s.repDelta >= 0 ? "+" : "−"}${Math.abs(s.repDelta)} → ${Math.round(GAME.studio.reputation)}` +
       (s.profit >= 0 ? " · the bank is friendly now." : " · the bank will mention this at the next review.") + "</div>");
     $("#res-notes").innerHTML = notes.join("");
+    renderHint("results");
     if (s.profit >= 0.5) SFX.play.fanfare();
     else if (s.profit < 0) SFX.play.bad();
   };
@@ -826,6 +899,7 @@ const UI = (() => {
         5. <b>Release</b> — four critics weigh in with advance reviews (their consensus shifts buzz), then track your film on the Top 10 until it drops out.
         6. <b>Headquarters</b> — between films: the dashboard (bank trust, board approval, prestige, rep curve), the trophy room, and the industry trends that shape your next opening weekend. If the board's approval hits zero, it votes.
       </div>
+      <p style="margin-top:14px">📎 <b>The boardroom</b> — your studio's executives (the CFO, the casting director, the PR chief, the distributor, the head of development, and the studio head) pass you a note whenever the situation changes. The advice is real; the delivery is not always kind. Toggle them from the top bar.</p>
       <p style="margin-top:14px">💡 <b>Test screening</b> (60%+ complete, $0.5M) scores the film; under 55 you can reshoot for $1.5M (+8 quality).</p>
       <p>💰 You start with $15M plus a credit line of ${M(limit)}M (it grows with reputation). Go 20% past the limit and the bank takes the lot.</p>
       <p>🎯 Quality = 55% script + 45% cast, scaled by how well you budgeted. Dramas and documentaries have legs; action opens hot and fades fast.</p>`);
@@ -870,12 +944,14 @@ const UI = (() => {
     $("#rewrite-slider").addEventListener("input", (e) => {
       GAME.setRewrites(+e.target.value);
       updateRewriteLabel();
+      renderHint("script");
     });
 
     // budget
     $("#budget-slider").addEventListener("input", (e) => {
       GAME.setBudget(+e.target.value);
       drawBudget();
+      renderHint("budget");
     });
     $("#btn-budget-back").addEventListener("click", () => {
       SFX.play.click();
@@ -964,6 +1040,18 @@ const UI = (() => {
     });
 
     // topbar
+    $("#btn-advisors").addEventListener("click", () => {
+      SFX.play.click();
+      GAME.toggleAdvisors();
+      syncAdvisorBtn();
+      if (GAME.advisorsOn) {
+        // re-open the channel: force a fresh note on the current screen
+        hintState.sig = {};
+        render();
+      } else {
+        for (const t in HINT_TOPICS) renderHint(t);
+      }
+    });
     $("#btn-sound").addEventListener("click", () => {
       const on = SFX.toggle();
       $("#btn-sound").textContent = on ? "🔊" : "🔇";

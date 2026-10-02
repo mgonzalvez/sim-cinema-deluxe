@@ -7,7 +7,7 @@
 
 const GAME = (() => {
   const D = DATA;
-  const SAVE_KEY = "simcinema_save_v2"; // bumped: HQ metagame state added
+  const SAVE_KEY = "simcinema_save_v3"; // bumped: advisors (hint) setting added
   const LEGACY_KEY = "simcinema_legacy_v1";
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -36,7 +36,8 @@ const GAME = (() => {
     trends: {},               // per-genre heat 0.75-1.3, drifts after each film
     awards: [],               // trophy room: { title, poster, name, razzie, date, y }
     repHistory: [],           // [{ rep, date }] for the dashboard curve
-    news: []                  // [{ date, text }] industry headlines for the HQ
+    news: [],                 // [{ date, text }] industry headlines for the HQ
+    advisorsOn: true          // the boardroom: toggle-able advisory notes
   };
   function defaultTrends() { const t = {}; for (const g of Object.keys(D.GENRES)) t[g] = 1.0; return t; }
   const _defaultTrends = defaultTrends;
@@ -74,6 +75,12 @@ const GAME = (() => {
   // ============================================================
   // NEW STUDIO / SAVE
   // ============================================================
+  // the advisor toggle persists across careers in its own key
+  function advisorsPref() {
+    try { const p = localStorage.getItem("simcinema_advisors"); return p != null ? p === "1" : true; }
+    catch (e) { return true; }
+  }
+
   function newStudio(name) {
     S.studio = { name: name.trim() || "Marquee & Vine", funds: 15, reputation: 25, films: 0, bestGross: 0 };
     S.date = { day: 1, month: 0, year: 2026 };
@@ -90,6 +97,7 @@ const GAME = (() => {
     S.repHistory = [];
     S.news = [];
     S.gameOverType = "bank";
+    S.advisorsOn = advisorsPref();
     S.state = "script";
     log(`The ${S.studio.name} lot opens with $15M and a dream.`, "gold");
     offerScripts();
@@ -103,7 +111,8 @@ const GAME = (() => {
         budget: S.budget, castOptions: S.castOptions, castPicks: S.castPicks, film: S.film,
         boxoffice: S.boxoffice, lastFilmSummary: S.lastFilmSummary, filmLog: S.filmLog,
         prestige: S.prestige, bank: S.bank, board: S.board, trends: S.trends,
-        awards: S.awards, repHistory: S.repHistory, news: S.news, gameOverType: S.gameOverType };
+        awards: S.awards, repHistory: S.repHistory, news: S.news, gameOverType: S.gameOverType,
+        advisorsOn: S.advisorsOn };
       localStorage.setItem(SAVE_KEY, JSON.stringify(blob));
     } catch (e) { /* storage full or unavailable — ignore */ }
   }
@@ -124,6 +133,7 @@ const GAME = (() => {
       S.repHistory = b.repHistory || [];
       S.news = b.news || [];
       S.gameOverType = b.gameOverType || "bank";
+      S.advisorsOn = b.advisorsOn != null ? b.advisorsOn : advisorsPref();
       // migration: old single-buzz saves → dual meters (positive keeps the value)
       if (S.film && S.film.buzz != null && S.film.buzzPos == null) {
         S.film.buzzPos = S.film.buzz;
@@ -660,6 +670,115 @@ const GAME = (() => {
     }
   };
 
+  // ---------- the boardroom: advisory notes ----------
+  G._hintSeen = {}; // per-topic: recently used template ids (anti-repetition)
+  G._hintTab = "";  // ui.js sets the active HQ tab for context
+
+  G.toggleAdvisors = function () {
+    G.S.advisorsOn = !G.S.advisorsOn;
+    try { localStorage.setItem("simcinema_advisors", G.S.advisorsOn ? "1" : "0"); } catch (e) { /* ignore */ }
+    if (G.S.studio) G.save();
+    return G.S.advisorsOn;
+  };
+
+  G.advisorsPref = function () {
+    try { const p = localStorage.getItem("simcinema_advisors"); return p != null ? p === "1" : true; }
+    catch (e) { return true; }
+  };
+
+  // build the context an exec "sees" for a given decision point
+  G._hintCtx = function (topic) {
+    const S = G.S, st = S.studio, f = S.film;
+    const tr = S.trends || G._internal.defaultTrends();
+    const ranked = Object.keys(D.GENRES).sort((a, b) => tr[b] - tr[a]);
+    const c = {
+      M: D.money, funds: st.funds, limit: G.creditLimit(),
+      fundable: Math.round((st.funds + G.creditLimit()) * 10) / 10,
+      rep: Math.round(st.reputation), prestige: Math.round(S.prestige),
+      talentOff: Math.min(15, Math.round(S.prestige * 0.15)),
+      bankTrust: Math.round(S.bank.trust), boardApproval: Math.round(S.board.approval),
+      hotGenre: ranked[0], coldGenre: ranked[ranked.length - 1],
+      hotHeat: tr[ranked[0]] != null ? tr[ranked[0]] : 1,
+      coldHeat: tr[ranked[ranked.length - 1]] != null ? tr[ranked[ranked.length - 1]] : 1
+    };
+    if (topic === "script") {
+      const sel = S.selectedScript != null ? S.scriptOptions[S.selectedScript] : null;
+      let bestIdx = null;
+      (S.scriptOptions || []).forEach((o, i) => { if (bestIdx == null || o.quality > S.scriptOptions[bestIdx].quality) bestIdx = i; });
+      Object.assign(c, {
+        rewrites: S.rewrites, selIdx: S.selectedScript, sel,
+        genre: sel ? sel.genre : "—", title: sel ? sel.title : "—",
+        quality: sel ? sel.quality : 0,
+        trend: sel && tr[sel.genre] != null ? tr[sel.genre] : 1,
+        bestIdx
+      });
+    } else if (topic === "budget") {
+      const p = S.pendingScript || {};
+      Object.assign(c, {
+        budget: S.budget, est: p.estBudget || 1, ratio: S.budget / Math.max(1, p.estBudget || 1),
+        genre: p.genre || "—", title: p.title || "—",
+        proj: G.projectedQuality(), weeks: G.productionWeeks(), weekly: G.weeklyProdCost()
+      });
+    } else if (topic === "casting") {
+      const o = S.castOptions, p = S.castPicks;
+      const get = (slot) => (o && p[slot] != null ? o[slot][p[slot]] : null);
+      const lead = get("lead");
+      let valueLoss = 0;
+      if (o && lead) {
+        const val = (t) => t.draw / Math.max(0.2, t.cost);
+        const best = Math.max(...o.lead.map(val));
+        valueLoss = Math.max(0, (best - val(lead)) / best);
+      }
+      Object.assign(c, {
+        total: G.castTotalCost(), lead: get("lead"), co: get("co"), sup: get("sup"),
+        dir: get("dir"), valueLoss
+      });
+    } else if (topic === "production" && f) {
+      Object.assign(c, {
+        week: f.week, totalWeeks: f.totalWeeks, progress: G.totalProduction(),
+        quality: f.quality, social: f.social, buzzPos: f.buzzPos, buzzNeg: f.buzzNeg,
+        net: G.netBuzz(), genre: f.genre, title: f.title,
+        screened: f.screened, screenScore: f.screenScore,
+        canScreen: G.canScreen(), canRelease: G.canRelease(),
+        taglineSet: !!f.tagline, weekCost: G.weeklyProdCost(),
+        spent: Math.round((f.costs.production + f.costs.cast + f.costs.dev + f.costs.ads + f.costs.events + f.costs.other) * 10) / 10
+      });
+    } else if (topic === "boxoffice" && S.boxoffice) {
+      const bo = S.boxoffice;
+      let top = null;
+      for (const r of bo.rivals) if (!top || r.last > top.last) top = r;
+      Object.assign(c, {
+        week: bo.week, rank: parseInt(String(G.boRank()).replace("#", ""), 10) || 0, gross: bo.my.total,
+        lastWeek: bo.my.last, genre: bo.my.genre, heat: tr[bo.my.genre] || 1,
+        critics: bo.my.critics || 0, done: bo.done, topRival: top
+      });
+    } else if (topic === "results" && S.lastFilmSummary) {
+      const s = S.lastFilmSummary;
+      Object.assign(c, {
+        grade: s.grade, profit: s.profit, margin: s.margin, quality: s.quality,
+        gross: s.gross, repDelta: s.repDelta, screened: s.screened, weeks: s.weeks, genre: s.genre
+      });
+    } else if (topic === "hq") {
+      Object.assign(c, { tab: G._hintTab || "dashboard", lastGrade: S.lastFilmSummary ? S.lastFilmSummary.grade : null });
+    }
+    return c;
+  };
+
+  // the one public entry point: the UI asks, an exec answers
+  G.hint = function (topic) {
+    const S = G.S;
+    if (!S.studio || S.state === "title" || S.state === "studio" || S.state === "gameover") return null;
+    if (!S.advisorsOn) return null;
+    let c;
+    try { c = G._hintCtx(topic); } catch (e) { return null; }
+    const seen = G._hintSeen[topic] = G._hintSeen[topic] || [];
+    const h = D.pickHint(topic, c, seen.slice(-3));
+    if (!h) return null;
+    seen.push(h.tid);
+    if (seen.length > 8) seen.shift();
+    return h;
+  };
+
   // ---------- small helpers for the UI ----------
   G.taglineOptions = function () {
     const f = G.S.film;
@@ -688,7 +807,12 @@ const GAME = (() => {
     boDone: { get: () => !!(G.S.boxoffice && G.S.boxoffice.done), enumerable: true },
     gameOverReason: { get: () => G.S.gameOverReason, enumerable: true },
     gameOverType: { get: () => G.S.gameOverType, enumerable: true },
-    pendingScript: { get: () => G.S.pendingScript, enumerable: true }
+    pendingScript: { get: () => G.S.pendingScript, enumerable: true },
+    advisorsOn: {
+      get: () => (G.S.studio ? (G.S.advisorsOn != null ? G.S.advisorsOn : true) : G.advisorsPref()),
+      set: (v) => { G.S.advisorsOn = !!v; },
+      enumerable: true
+    }
   });
 
   G.selectScript = function (index, rewrites) {
@@ -720,6 +844,8 @@ const GAME = (() => {
     S.repHistory = [];
     S.news = [];
     S.gameOverType = "bank";
+    S.advisorsOn = G.advisorsPref();
+    G._hintSeen = {};
   };
 
 })(GAME);

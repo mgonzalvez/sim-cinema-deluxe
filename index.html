@@ -24,6 +24,7 @@
     <div class="stat-pill" title="Studio reputation"><span class="stat-label">REP</span><span class="stat-value" id="tb-rep">0</span></div>
     <div class="stat-pill" title="Film in production"><span class="stat-label">FILM</span><span class="stat-value" id="tb-film">#0</span></div>
     <div class="topbar-btns">
+      <button class="icon-btn active" id="btn-advisors" title="Studio advisors: on — the office passes notes">📎</button>
       <button class="icon-btn" id="btn-sound" title="Toggle sound">🔊</button>
       <button class="icon-btn" id="btn-help" title="Help">?</button>
     </div>
@@ -84,6 +85,7 @@
       <h2 class="screen-title">DEVELOPMENT <span class="phase-tag">PHASE 1 / 5</span></h2>
       <p class="screen-sub">Three scripts land on your desk this week. Choose one to develop.</p>
     </div>
+    <div class="hint-slot" data-topic="script" hidden></div>
     <div class="card-grid" id="script-grid"></div>
     <div class="panel center-panel narrow">
       <label class="field">
@@ -106,6 +108,7 @@
       <h2 class="screen-title">SET THE BUDGET <span class="phase-tag">PHASE 2 / 5</span></h2>
       <p class="screen-sub" id="budget-sub"></p>
     </div>
+    <div class="hint-slot" data-topic="budget" hidden></div>
     <div class="panel center-panel narrow budget-panel">
       <div class="budget-display"><span id="budget-amount">$10M</span><small>production budget</small></div>
       <input type="range" id="budget-slider" min="2" max="40" step="1" value="10">
@@ -124,6 +127,7 @@
       <h2 class="screen-title">CAST &amp; CREW <span class="phase-tag">PHASE 3 / 5</span></h2>
       <p class="screen-sub">Big names bring big audiences — and big paychecks. Balance draw against cost.</p>
     </div>
+    <div class="hint-slot" data-topic="casting" hidden></div>
     <div class="casting-grid" id="casting-grid"></div>
     <div class="panel center-panel narrow">
       <div class="cast-summary" id="cast-summary"></div>
@@ -147,6 +151,7 @@
       <div class="prod-date" id="prod-date">—</div>
     </div>
 
+    <div class="hint-slot" data-topic="production" hidden></div>
     <div class="prod-grid">
       <div class="panel prod-panel">
         <h3 class="panel-title">ADVERTISING <span class="panel-sub" id="buzz-sub">buzz</span></h3>
@@ -207,6 +212,7 @@
         <button class="icon-btn speed-btn" data-speed="bo-300">2×</button>
       </div>
     </div>
+    <div class="hint-slot" data-topic="boxoffice" hidden></div>
     <div class="bo-grid">
       <div class="panel bo-panel">
         <h3 class="panel-title">BOX OFFICE TOP 10 <span class="panel-sub">weekly gross · $M</span></h3>
@@ -233,6 +239,7 @@
     <div class="panel center-panel hq-panel">
       <h2 class="screen-title">STUDIO HEADQUARTERS</h2>
       <p class="screen-sub" id="hq-sub">—</p>
+      <div class="hint-slot" data-topic="hq" hidden></div>
       <nav class="hq-tabs" id="hq-tabs"></nav>
       <div class="hq-body" id="hq-body"></div>
       <div class="btn-row" style="margin-top:20px">
@@ -248,6 +255,7 @@
         <div class="results-grade" id="res-grade">A</div>
       </div>
       <div class="results-body">
+        <div class="hint-slot" data-topic="results" hidden></div>
         <h2 class="screen-title" id="res-headline">FINANCIALS</h2>
         <p class="screen-sub" id="res-sub"></p>
         <table class="pnl-table" id="pnl-table"></table>

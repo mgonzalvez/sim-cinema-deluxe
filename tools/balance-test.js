@@ -38,8 +38,13 @@ function fullGame(seedLog) {
   const ctx = loadWorld();
   const G = ctx.GAME;
   G.newStudio("Test Pictures", seedLog ? { log: seedLog } : undefined);
+  const hintTopics = { script: "script", budget: "budget", casting: "casting", production: "production", boxoffice: "boxoffice", results: "results", hq: "hq" };
+  let hints = 0, hintExecs = new Set();
   let guard = 0;
   while (!["results", "hq", "gameover"].includes(G.state) && guard++ < 500) {
+    // the boardroom must produce notes wherever it can (smoke coverage)
+    const h = G.hint(hintTopics[G.state] || "hq");
+    if (h) { hints++; hintExecs.add(h.exec.id); if (!h.exec.name || !h.text) throw new Error("bad hint shape"); }
     switch (G.state) {
       case "script":
         G.selectScript(0, 1);
@@ -73,6 +78,9 @@ function fullGame(seedLog) {
     }
   }
   if (guard >= 500) throw new Error("game did not terminate (guard)");
+  if (hints < 5) throw new Error("hint engine produced too few notes: " + hints);
+  if (hintExecs.size < 3) throw new Error("hint exec variety too low: " + [...hintExecs].join(","));
+  if (!G.S.advisorsOn) { G.toggleAdvisors(); if (!G.S.advisorsOn) throw new Error("toggleAdvisors did not turn on"); }
   return ctx;
 }
 

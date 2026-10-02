@@ -110,6 +110,15 @@ const DRIVER = `
     cards[0].click();
     const r = $("#rewrite-slider"); r.value = "2"; r.dispatchEvent(new Event("input"));
     if ($("#btn-script-go").disabled) fail("sign deal disabled");
+    if (!document.querySelector("#screen-script .hintbar")) fail("no advisor note on script");
+    if (GAME.S.advisorsOn !== true) fail("advisors should default on");
+    $("#btn-advisors").click();
+    if (GAME.S.advisorsOn !== false) fail("advisors toggle did not take");
+    await sleep(30);
+    if (!document.querySelector("#screen-script .hint-slot").hidden) fail("advisors off: slot should hide");
+    $("#btn-advisors").click();
+    if (GAME.S.advisorsOn !== true) fail("advisors re-enable failed");
+    if (!document.querySelector("#screen-script .hintbar")) fail("advisors on: note should return");
     $("#btn-script-go").click();
     if (GAME.state !== "budget") fail("state=" + GAME.state);
     ok("script select + sign");

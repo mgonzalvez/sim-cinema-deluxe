@@ -108,6 +108,11 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
 - **A career, not just a loop**: bank trust sets your credit line, the board
   can fire you, your prestige makes talent cheaper, and the town's moods move
   the genres — eight films can feel like eight different seasons in Hollywood.
+- **The office talks**: a toggle-able advisory bench — the CFO, the casting
+  director, the PR chief, the head of development, the distributor, and the
+  studio head — passes you a sticky note whenever the situation changes. The
+  advice is real (budget bands, buzz, genre trends, the board's mood); the
+  delivery is not always kind. Toggle it with the 📎 button in the top bar.
 - **The tone is loving, not mean**: a lot of the cast and crew are affectionate
   parodies of real film-industry figures (all fictional names), and the events,
   taglines, and critics lean into the industry's best jokes.

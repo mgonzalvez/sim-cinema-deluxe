@@ -13,11 +13,11 @@ research background and player-facing docs.
 |---|---|
 | `index.html` | All 10 screens (title, studio, script, budget, casting, production, **HQ**, box office, results, game over) + one shared modal |
 | `styles.css` | Cinematic theme (marquee gold/velvet red, film grain, responsive) |
-| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines**) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
+| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines + advisory execs & hint templates** (`ADVISORS`/`HINTS`/`pickHint`)) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
 | `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
 | `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API |
-| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed |
+| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed, **advisory note bars** (`.hint-slot` per screen + `renderHint` + top-bar 📎 toggle) |
 | `tools/balance-test.js` | Headless smoke + 300-film random + 200-film skilled simulations (Node VM) |
 | `tools/career-test.js` | 100 careers × 8 films with a strong strategy |
 | `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening/reviews modals, terminate + bankruptcy + game-over branches, save/continue across a page reload. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed) |
@@ -52,8 +52,9 @@ Persistent career state in the save blob: `prestige` 0–100, `bank { trust }`,
 `critique`, `release`, `nextBoWeek`, `finishBoxOffice`, `nextFilm`, `terminateFilm`,
 `save`/`load`/`hasSave`/`clearSave`, `canAfford`, `creditLimit`.
 
-Save format: localStorage key `simcinema_save_v2` (whole state blob; bumped
-when the HQ metagame landed — safe to bump again if the shape changes).
+Save format: localStorage key `simcinema_save_v3` (whole state blob; bumped
+when the HQ metagame landed, then the advisors setting — safe to bump again if
+the shape changes).
 
 ### Key game constants (balance is sensitive — re-run tools/ after changes)
 
@@ -100,7 +101,15 @@ when the HQ metagame landed — safe to bump again if the shape changes).
   **Studio Headquarters metagame** — between-films hub (dashboard, trophy room,
   board w/ fire branch + one reprieve, genre trends, gossip feed) backed by
   `prestige`/`bank`/`board`/`trends`/`awards`/`repHistory`/`news` state;
-  save key bumped to `simcinema_save_v2`.
+  **The Boardroom** advisory hint system — six parodic execs (Gerald Fitch
+  studio head, Dot Quince CFO, Babs Merriweather development, Percival Loam
+  casting, Vivienne St. Clair PR, Mona Delacroix distribution) pass
+  context-aware sticky notes on every screen (`data.js` `ADVISORS`/`HINTS`/
+  `pickHint`, engine `GAME.hint(topic)`, UI `renderHint`); notes re-roll on a
+  per-topic "signature" change so they comment live, ~15% are pure gossip;
+  📎 top-bar toggle → `S.advisorsOn` + `simcinema_advisors` pref key;
+  save key bumped to `simcinema_save_v3`. Purely informational — zero balance
+  impact.
 - **Balance note**: the newest risk axes are the critic step and the HQ layer
   (bank trust, fired branch, trends). Current strong play measures ≈ 83–86%
   hit films / 78–86% of 8-film careers survive with $110–125M avg final funds

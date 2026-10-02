@@ -23,6 +23,8 @@ const DATA = (() => {
     const v = Math.round(m * 10) / 10;
     return "$" + (Number.isInteger(v) ? v : v.toFixed(1)) + "M";
   };
+  const cap = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
+  const pct = (h) => (h >= 1 ? "+" : "\u2212") + Math.abs(Math.round((h - 1) * 100)) + "%";
 
   // ---------- genres ----------
   const GENRES = {
@@ -515,7 +517,166 @@ const DATA = (() => {
     return h;
   }
 
-  return { pick, rand, randInt, clamp, shuffle, money, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, AWARDS, RAZZIES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS, makeHeadlines };
+  // ---------- the boardroom: advisory execs + their notes ----------
+  const ADVISORS = [
+    { id: "gerald",    name: "Gerald Fitch",       title: "Studio Head",             mono: "GF", color: "#ff7a6e" },
+    { id: "dot",      name: "Dot Quince",         title: "Chief Financial Officer", mono: "DQ", color: "#3ec97e" },
+    { id: "babs",     name: "Babs Merriweather",  title: "Head of Development",     mono: "BM", color: "#9b7fe8" },
+    { id: "percy",    name: "Percival Loam",      title: "Casting Director",        mono: "PL", color: "#f06bb4" },
+    { id: "vivienne", name: "Vivienne St. Clair", title: "Head of Marketing & PR",  mono: "VS", color: "#ffd86b" },
+    { id: "mona",     name: "Mona Delacroix",     title: "Head of Distribution",    mono: "MD", color: "#5aa9e6" }
+  ];
+
+  // Each hint: topic (script|budget|casting|production|boxoffice|results|hq),
+  // which exec delivers it, an optional when(ctx) gate, and t(ctx) → the note.
+  // *stars* in a note render as emphasis. flavor = pure character, no advice.
+  const HINTS = [
+    // ---------- DEVELOPMENT ----------
+    { id: "scr-gerald-know", topic: "script", exec: "gerald", when: (c) => !c.sel,
+      t: (c) => `I'll tell you what I think of all three: I'll *know* it when I see it. The quality number matters more than the genre, but a genre the town is hungry for is free money. Check both.` },
+    { id: "scr-gerald-yes", topic: "script", exec: "gerald", when: (c) => c.sel && c.quality >= 62,
+      t: (c) => `That one. Yes. It has *the shape*. Do not second-guess it, and do not let anyone in this office talk you into the safe page. The safe page is how studios die.` },
+    { id: "scr-babs-hi", topic: "script", exec: "babs", when: (c) => c.sel && c.quality >= 62,
+      t: (c) => `"${c.title}" is the only one of these three with a second act that isn't a grocery list. Take it before the development intern does.` },
+    { id: "scr-babs-lo", topic: "script", exec: "babs", when: (c) => c.sel && c.quality < 45,
+      t: (c) => `You have "${c.title}" picked. I have read better first pages in a *waiting room*. One of the other two is less broken. Probably both, actually.` },
+    { id: "scr-babs-best", topic: "script", exec: "babs", when: (c) => c.selIdx != null && c.selIdx !== c.bestIdx && c.sel && c.sel.quality < 55,
+      t: (c) => `That is not the strongest page on your desk. "Measurably better" is a phrase I have learned to trust, and in this office it is the only phrase that pays.` },
+    { id: "scr-mona-hot", topic: "script", exec: "mona", when: (c) => c.sel && c.trend >= 1.12,
+      t: (c) => `${cap(c.genre)} is the hottest shelf in town right now (${pct(c.trend)}). Whatever that film becomes, it will open into a full room. Windows close. This one is open.` },
+    { id: "scr-mona-cold", topic: "script", exec: "mona", when: (c) => c.sel && c.trend <= 0.9,
+      t: (c) => `Careful. ${cap(c.genre)} is the cold shelf this season (${pct(c.trend)}). You would be opening into an *empty theater* — and I can fix a bad film. I cannot fix an empty theater.` },
+    { id: "scr-dot-rewrite", topic: "script", exec: "dot", when: (c) => c.sel && c.rewrites >= 2,
+      t: (c) => `${c.rewrites} rewrite weeks, ${c.M(c.rewrites * 0.3)}. Development is the *only* stage where money reliably buys quality. After the cameras roll, money only buys problems. Spend it here.` },
+    { id: "scr-vivienne-sentence", topic: "script", exec: "vivienne", when: (c) => c.sel,
+      t: (c) => `Whatever you pick, the audience should be able to tell a *stranger* about it in one sentence. If the logline can't do that, the film can't — and I am the one who has to print the sentence.` },
+    { id: "scr-percy-kind", topic: "script", exec: "percy", flavor: true,
+      t: (c) => `I don't read scripts. I read the *kind* of scripts — some need a star, some need a camera, some just need a room to happen in. Yours will tell me what to bring to the table next week.` },
+
+    // ---------- BUDGET ----------
+    { id: "bud-dot-under", topic: "budget", exec: "dot", when: (c) => c.ratio < 0.72,
+      t: (c) => `You've set ${c.M(c.budget)} against an ideal of ${c.M(c.est)}. The bank and I are looking at the same spreadsheet. The bank is *nodding*. I am not. The film will feel this in week two, on a Tuesday, when nobody is around to explain it.` },
+    { id: "bud-dot-low", topic: "budget", exec: "dot", when: (c) => c.ratio >= 0.72 && c.ratio < 0.85,
+      t: (c) => `Slightly under the ideal. Defensible. I will defend it *once*. After that I have other numbers to defend, and they are all mine.` },
+    { id: "bud-dot-sweet", topic: "budget", exec: "dot", when: (c) => c.ratio >= 0.85 && c.ratio <= 1.12,
+      t: (c) => `That's the number. Somewhere around the ideal, and I stop talking. I want you to know how *rare* that is.` },
+    { id: "bud-dot-over", topic: "budget", exec: "dot", when: (c) => c.ratio > 1.12 && c.ratio <= 1.3,
+      t: (c) => `A little over the ideal. The quality column will notice — barely. The *funds* column will notice it a lot. That is the deal. I'll sign it.` },
+    { id: "bud-dot-wayover", topic: "budget", exec: "dot", when: (c) => c.ratio > 1.3,
+      t: (c) => `${c.M(c.budget)}? The ideal is ${c.M(c.est)}. I have *not* sent a memo to the bank. But I have the phone in hand, and I do not have a dial tone I respect.` },
+    { id: "bud-dot-funds", topic: "budget", exec: "dot", when: (c) => c.budget > c.fundable,
+      t: (c) => `Let's say this once, clearly: you do not *have* that money. Funds and credit together, ${c.M(c.fundable)}. The button will trim you anyway. I'm only the one who tells you first.` },
+    { id: "bud-mona-fx", topic: "budget", exec: "mona", when: (c) => c.ratio < 0.8 && ["Sci-Fi", "Animation", "Action"].includes(c.genre),
+      t: (c) => `An underfunded ${cap(c.genre)} is a ${cap(c.genre)} you can *see* is underfunded. The audience looks through the floor. I've seen it from every window. If you must cut, don't cut where the camera is.` },
+    { id: "bud-gerald-promise", topic: "budget", exec: "gerald", flavor: true,
+      t: (c) => `Budgets are a promise you make to a room of people who *remember*. Make the whole promise — or make a smaller one on purpose. What you cannot do is make the promise, and then look surprised at the weather.` },
+
+    // ---------- CASTING ----------
+    { id: "cas-percy-star", topic: "casting", exec: "percy", when: (c) => c.lead && c.lead.draw >= 80,
+      t: (c) => `A ${c.lead.name} picture. The agents will call before you do. Yes, the fee is what it is — the fee is the price of the room *filling*. Draw is the only number on that card that pays rent.` },
+    { id: "cas-percy-value", topic: "casting", exec: "percy", when: (c) => c.lead && c.valueLoss >= 0.35,
+      t: (c) => `Now — and I say this as a *friend* — there is someone in that lineup whose draw-per-dollar is doing arithmetic you are not. I won't name names. The fee column already knows their name.` },
+    { id: "cas-percy-social", topic: "casting", exec: "percy", when: (c) => c.lead && c.lead.social >= 68,
+      t: (c) => `High social. Do you know what that buys? It makes *every* ad buy in production pay for itself a little extra. The internet is already at the party. Your money just decides how loud.` },
+    { id: "cas-percy-dirhi", topic: "casting", exec: "percy", when: (c) => c.dir && c.dir.score >= 84,
+      t: (c) => `That director. That is the only way to get *that many* takes out of that script. The fee is not for the person. The fee is for the takes.` },
+    { id: "cas-percy-dirlo", topic: "casting", exec: "percy", when: (c) => c.dir && c.dir.score < 48,
+      t: (c) => `I know *exactly* which door you want them to close forty-seven times. That is not a door, that is a *budget*. The score column has a number for a reason.` },
+    { id: "cas-dot-total", topic: "casting", exec: "dot", when: (c) => c.total > 0 && c.total > c.fundable * 0.8,
+      t: (c) => `Casting fee: ${c.M(c.total)}. You can fund ${c.M(c.fundable)}. I admire the optimism. The spreadsheet does *not*. One of these two has to be smaller.` },
+    { id: "cas-dot-mid", topic: "casting", exec: "dot", when: (c) => c.total > 0 && c.total <= c.fundable * 0.8,
+      t: (c) => `Total fees ${c.M(c.total)}, with ${c.talentOff}% off for being a studio with a name. That is the market doing your budgeting. Keep it under half of what you *could* spend and nobody ever talks about the fee again.` },
+    { id: "cas-gerald-cheapest", topic: "casting", exec: "gerald", flavor: true,
+      t: (c) => `Casting is the only department where the cheapest and the best are sometimes the *same* person. Find that person. I've seen them. It is almost never the one in the first slot.` },
+
+    // ---------- PRODUCTION ----------
+    { id: "prod-viv-pr", topic: "production", exec: "vivienne", when: (c) => c.buzzNeg >= 10,
+      t: (c) => `The red meter is at ${Math.round(c.buzzNeg)}. PR cleanup is unlocked — ${c.M(1.2)} buys you a spin, a statement, and a quiet weekend. In this town, that is a *bargain*. The opening weekend only remembers the difference.` },
+    { id: "prod-viv-quiet", topic: "production", exec: "vivienne", when: (c) => c.net <= 5 && c.buzzPos < 25,
+      t: (c) => `The internet has stopped talking about you. That is the real danger — not the noise, the *quiet*. Put something on the air. Even the billboards. Billboards are cheap confidence.` },
+    { id: "prod-viv-loud", topic: "production", exec: "vivienne", when: (c) => c.buzzPos >= 70 && c.net > 15,
+      t: (c) => `The chatter is already loud enough to open a picture. I would stop buying ads and let it *burn* — loud is fuel, and fuel costs money. Save some of it for the tagline.` },
+    { id: "prod-viv-tag", topic: "production", exec: "vivienne", when: (c) => !c.taglineSet,
+      t: (c) => `You have not picked a tagline. The tagline is the only ad the film buys *once* and runs forever. Don't default to the middle one. None of them is the middle one. Read them like the papers will.` },
+    { id: "prod-babs-low", topic: "production", exec: "babs", when: (c) => c.quality < 52 && !c.screened && c.progress >= 45,
+      t: (c) => `Projected quality is ${c.quality}. Here is the part nobody likes: that number can still be fixed, once, for ${c.M(1.5)} — but only *after* a test screen tells you where. Sixty percent of the film is the deadline. Don't let the critics be the diagnostician.` },
+    { id: "prod-babs-reshoot", topic: "production", exec: "babs", when: (c) => c.screened && c.screenScore < 55,
+      t: (c) => `The audience has voted ${c.screenScore}. Reshoots are open and the fix is ${c.M(1.5)}. After release, the price of that same fix is *reputation*. I know which bill is cheaper.` },
+    { id: "prod-babs-gold", topic: "production", exec: "babs", flavor: true, when: (c) => c.screened && c.screenScore >= 70,
+      t: (c) => `The audience is *in*. Here is the advice, and it is free: stop touching the film. That's it. You're welcome.` },
+    { id: "prod-dot-burn", topic: "production", exec: "dot", when: (c) => c.funds < 3 && c.weekCost > 0.8,
+      t: (c) => `Every week on the floor is ${c.M(c.weekCost)}. You have ${c.M(c.funds)} left in the building. I have a *feeling* about the next Tuesday. The bank has a letter. One of us is going to look prophetic.` },
+    { id: "prod-mona-weather", topic: "production", exec: "mona",
+      t: (c) => `Week ${c.week + 1} of ${c.totalWeeks}. The film isn't in theaters yet; the *weather* is. Watch the two meters — that difference is all the opening weekend will remember.` },
+    { id: "prod-gerald-nothing", topic: "production", exec: "gerald", flavor: true,
+      t: (c) => `I hear it was eventful on the lot this week. *Good*. Pictures that make nothing happen in production make nothing happen in theaters. Nothing is what sells.` },
+
+    // ---------- BOX OFFICE ----------
+    { id: "bo-mona-open", topic: "boxoffice", exec: "mona", when: (c) => c.week === 0,
+      t: (c) => `The number hasn't appeared yet. It will, in a moment. After that — watch the *curve*, not the number. The number is a snapshot; the curve is the story.` },
+    { id: "bo-mona-r1", topic: "boxoffice", exec: "mona", when: (c) => c.week >= 1 && c.week <= 2 && c.rank === 1,
+      t: (c) => `Number one. I've read the number a hundred times and I still like it. Now watch week *two* — that is where genres with legs tell you the truth. And that is where your ${cap(c.genre)} makes its case.` },
+    { id: "bo-mona-top3", topic: "boxoffice", exec: "mona", when: (c) => c.rank <= 3,
+      t: (c) => `Top three — ${c.rank}, in fact. Hold the line: a picture like this either *expands*, or it dies of its own weight. You don't have to do anything. The advice is: don't.` },
+    { id: "bo-mona-mid", topic: "boxoffice", exec: "mona", when: (c) => c.rank >= 4 && c.rank <= 6,
+      t: (c) => `You're ${c.rank}. It is not a bad week; it is a week *with a curve*. If the decay is gentle, the total outgrows the number. I've watched films that looked dead in week three and were perfectly fine by week nine.` },
+    { id: "bo-mona-far", topic: "boxoffice", exec: "mona", when: (c) => c.rank >= 7,
+      t: (c) => `${c.rank}. I'm not going to dress it up. But a rank is a snapshot and the total is a *story* — watch the curve, not the number, and pull it when the shape says so.` },
+    { id: "bo-mona-legs", topic: "boxoffice", exec: "mona", when: (c) => c.week >= 3 && ["Drama", "Documentary", "Animation", "Romance"].includes(c.genre),
+      t: (c) => `A ${cap(c.genre)} is a *legs* picture. The curve looks small but it is long. Don't pull it early — every extra week is a week the audience is finding it on its own.` },
+    { id: "bo-mona-decay", topic: "boxoffice", exec: "mona", when: (c) => c.week >= 3 && ["Action", "Comedy"].includes(c.genre),
+      t: (c) => `${cap(c.genre)} dies on the second and third weekend; the good part is already banked. If week three is going to be ugly, pulling it *saves the marquee*. I respect a producer who knows the shape.` },
+    { id: "bo-mona-critics", topic: "boxoffice", exec: "mona", when: (c) => c.critics > 0 && c.critics < 40 && c.week <= 3,
+      t: (c) => `The critics came in cold (${c.critics}). Fine. The internet is louder than the critics and meaner than the audience. Give it *two weeks*; the meters decide, not the reviews.` },
+    { id: "bo-gerald-number", topic: "boxoffice", exec: "gerald", flavor: true,
+      t: (c) => `I'm watching the number, not the film. Don't mistake the two. The number is the only one that sends *invoices*.` },
+
+    // ---------- RESULTS ----------
+    { id: "res-dot-good", topic: "results", exec: "dot", when: (c) => c.profit > 0,
+      t: (c) => `Profit: ${c.M(c.profit)}. Filed. The bank is *fond* of you now, which I advise you to read as "they will lend you more" — which is how people get in trouble. Stay profitable. Stay boring about it.` },
+    { id: "res-dot-bad", topic: "results", exec: "dot", when: (c) => c.profit <= 0,
+      t: (c) => `The red column. I'm a professional, so I won't say *I told you*. But the bank's trust moved, and the board's spreadsheet *noticed*. The next picture has to be funded like it matters. To them, it does.` },
+    { id: "res-gerald-meeting", topic: "results", exec: "gerald", flavor: true,
+      t: (c) => `That's a picture. Every picture — *especially* that one — is the next one's casting meeting. The fee column just moved. You're welcome in advance.` },
+    { id: "res-mona-window", topic: "results", exec: "mona", when: (c) => c.margin > 1.2,
+      t: (c) => `That margin. That is not a film, that is a *rate card*. Every studio in town will read that genre as the weather for your next one — and so should you. The trends page is open. It's cold coffee. Read it.` },
+    { id: "res-mona-loss", topic: "results", exec: "mona", when: (c) => c.margin < -0.3,
+      t: (c) => `It ran ${c.weeks} weeks. The window is closed; the *street* isn't. A small opening in a genre the town has turned against is a message. Next development round, pick a shelf with a pulse.` },
+    { id: "res-babs-craft", topic: "results", exec: "babs", when: (c) => c.quality >= 75,
+      t: (c) => `A ${c.quality}-quality picture. Wherever it landed financially, the *craft* was there — and craft is the one number that comes back to you in casting rooms. The fee column remembers.` },
+
+    // ---------- HEADQUARTERS ----------
+    { id: "hq-dot-board", topic: "hq", exec: "dot", when: (c) => c.boardApproval < 25,
+      t: (c) => `I need to tell you something, and I only have to do this *once*. The board is at ${c.boardApproval}. Below zero they vote, and the reprieve — there is exactly one — goes where the history justifies it. The next picture must not be a small one.` },
+    { id: "hq-dot-bank", topic: "hq", exec: "dot", when: (c) => c.bankTrust >= 78,
+      t: (c) => `The bank's file on you is now a *compliment*. That is exactly how people take on debt they can't service. The credit line is ${c.M(c.limit)} — breathe, and don't let it buy you a habit.` },
+    { id: "hq-dot-prestige", topic: "hq", exec: "dot", when: (c) => c.prestige >= 55,
+      t: (c) => `The fee column just got cheaper — talent at ${c.talentOff}% off, the market doing your budgeting for you. My advice: spend the *difference* on the script. It is the only column where it comes back double.` },
+    { id: "hq-babs-hungry", topic: "hq", exec: "babs",
+      t: (c) => `The development office is already circling the next picture. The town is hungry for ${cap(c.hotGenre)} right now — I can *smell* it in the option deals — and it has had enough of ${cap(c.coldGenre)}. The next script page should know that before you do.` },
+    { id: "hq-mona-trend", topic: "hq", exec: "mona", when: (c) => c.hotHeat - c.coldHeat > 0.15,
+      t: (c) => `Same thing, colder: ${cap(c.hotGenre)} is the hottest shelf (${pct(c.hotHeat)}), ${cap(c.coldGenre)} the coldest (${pct(c.coldHeat)}). Your next opening weekend is made or broken in *development*, not release. I'm the one who has to book the screens.` },
+    { id: "hq-gerald-next", topic: "hq", exec: "gerald", flavor: true,
+      t: (c) => `I ran that picture. I'll run the next one. The only difference will be the number on the budget page — and I have *thoughts* about the number.` }
+  ];
+
+  function pickHint(topic, ctx, avoid = []) {
+    const all = HINTS.filter((h) => h.topic === topic);
+    if (!all.length) return null;
+    const ok = (h) => (!h.when || h.when(ctx)) && !avoid.includes(h.id);
+    let pool = all.filter(ok);
+    if (!pool.length) pool = all.filter((h) => !avoid.includes(h.id));
+    if (!pool.length) pool = all;
+    // most of the time the office gives real advice; sometimes it just gossips
+    if (Math.random() < 0.15) {
+      const fl = pool.filter((h) => h.flavor);
+      if (fl.length) pool = fl;
+    }
+    const h = pick(pool);
+    return { exec: ADVISORS.find((a) => a.id === h.exec), text: h.t(ctx), tid: h.id };
+  }
+
+  return { pick, rand, randInt, clamp, shuffle, money, cap, pct, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, AWARDS, RAZZIES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS, makeHeadlines, ADVISORS, pickHint };
 })();
 
 // ---------- procedural generators ----------
