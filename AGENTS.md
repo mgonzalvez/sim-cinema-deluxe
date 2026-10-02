@@ -45,12 +45,44 @@ Persistent career state in the save blob: `prestige` 0–100, `bank { trust }`,
 - **Trends** multiply openings for player **and** rivals (`makeRivals(…, heatOf)`);
   drift ±0.13 per film in `enterHQ`. UI: `RENDERERS.hq` with 5 tabs in `js/ui.js`.
 
+### The Boardroom (advisory hint system)
+
+A toggle-able bench of six parodic execs (`D.ADVISORS`: Gerald Fitch studio
+head, Dot Quince CFO, Babs Merriweather development, Percival Loam casting,
+Vivienne St. Clair PR, Mona Delacroix distribution — each with name, title,
+monogram, and accent color) who pass sticky notes on every screen.
+- **Content** (`data.js`): `HINTS` — ~55 templates, each
+  `{ id, topic, exec, when?(ctx), t(ctx) }`; `*stars*` in a note render as
+  `<em>` in the UI. `D.pickHint(topic, ctx, avoidIds)` gates on `when`,
+  rotates (avoid the last few template ids), and picks pure-gossip `flavor`
+  templates ~15% of the time. Topics: `script|budget|casting|production|
+  boxoffice|results|hq`.
+- **Engine** (`game.js`, DOM-free): `G._hintCtx(topic)` builds the ctx an exec
+  "sees" (funds/limit/fundable, rep, prestige, talentOff, bank trust, board
+  approval, hot/cold genre + heat, plus per-topic fields — budget ratio,
+  cast picks + valueLoss, buzz/week/progress/screened, bo rank/week/critics,
+  results P&L, hq tab). `G.hint(topic)` is the only public entry: returns
+  `{ exec, text, tid }` or null (null on title/studio/gameover, or when
+  advisors are off); tracks recent tids in `G._hintSeen` per topic.
+- **Toggle**: `G.toggleAdvisors()` → `S.advisorsOn` (in the v3 save blob) +
+  `simcinema_advisors` pref key that survives careers; `GAME.advisorsOn`
+  getter falls back to the pref on the title screen. UI: 📎 top-bar button.
+- **UI** (`ui.js`): one `.hint-slot[data-topic=…]` per screen (7 in
+  `index.html`); `renderHint(topic)` re-rolls a note only when a per-topic
+  "signature" changes (selected script + rewrites, budget tier, cast picks,
+  week + buzz/screen/release bands, bo week; static for results/hq);
+  a changed situation re-rolls immediately, an unchanged one at most
+  every 1.1s so autoplay doesn't machine-gun notes. Notes are purely informational — **never
+  add mechanical effects to them without rebalancing**.
+
 `GAME.S` holds mutable state; the flat API is flattened getters
 (`GAME.state`, `GAME.film`, `GAME.studio`, …) plus actions: `newStudio`,
 `selectScript`, `setBudget`/`confirmBudget`, `pickTalent`/`confirmCasting`,
 `passWeek`, `resolveEvent`, `buyAd`, `setTagline`, `testScreen`, `reshoot`,
 `critique`, `release`, `nextBoWeek`, `finishBoxOffice`, `nextFilm`, `terminateFilm`,
-`save`/`load`/`hasSave`/`clearSave`, `canAfford`, `creditLimit`.
+`save`/`load`/`hasSave`/`clearSave`, `canAfford`, `creditLimit`,
+and the boardroom: `hint(topic)`, `toggleAdvisors`, `advisorsOn`,
+`advisorsPref`.
 
 Save format: localStorage key `simcinema_save_v3` (whole state blob; bumped
 when the HQ metagame landed, then the advisors setting — safe to bump again if
@@ -127,6 +159,8 @@ the shape changes).
    ~~humor pass (parody personas, 12 events, title templates, poster stickers)
    + advance reviews + story-message highlighting~~ done;
    ~~Studio Headquarters metagame (5 tabs, fire branch, trends, prestige)~~ done.
+   ~~The Boardroom advisory hint system (six execs, live notes, 📎 toggle)~~
+   done (commit b4055dc).
 2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass.
 
@@ -181,7 +215,12 @@ tools/browser-test.js` after each build; bump the save key on shape changes.
 - Keep `js/game.js` DOM-free (it runs headless in `tools/` via a Node VM);
   all DOM belongs in `js/ui.js`.
 - Keep headless tests green after any game.js/data.js change:
-  `node tools/balance-test.js --smoke && node tools/career-test.js`.
+  `node tools/balance-test.js --smoke && node tools/career-test.js`
+  (smoke also exercises the hint engine across a full game: note volume,
+  exec variety, and the advisor toggle).
+- New hint templates: give them a unique `id`, a `topic`, and reference only
+  ctx fields that `G._hintCtx` builds for that topic; keep at least one
+  always-true template per topic so the pool never empties.
 - Keep browser test green after any ui.js/index.html/styles.css change:
   `node tools/browser-test.js` (drives the real UI in headless Chrome;
   `PHASE=production|boxoffice|script|casting|reviews|results|title` captures a

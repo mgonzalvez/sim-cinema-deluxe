@@ -32,7 +32,9 @@ Archives: `info-mac.org/viewtopic.php?t=4039` · `mactrove.com/software/simcinem
 A static, no-build, vanilla HTML/CSS/JS game (GitHub Pages ready). Same soul,
 modern body: a dark marquee/cinema aesthetic, procedurally generated movie
 posters, WebAudio sound, weekly production events, a drawdown credit line,
-and a full career loop where reputation compounds film to film.
+and a full career loop where reputation compounds film to film — plus a
+toggle-able boardroom of studio executives who will absolutely have thoughts
+about your decisions.
 
 ### How to run
 
