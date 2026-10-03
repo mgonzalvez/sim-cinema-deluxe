@@ -828,7 +828,6 @@ const UI = (() => {
     html += line("Development", -s.costs.dev);
     html += line("Advertising", -s.costs.ads);
     if (s.costs.events + s.costs.other > 0) html += line("Events, screenings & reshoots", -(s.costs.events + s.costs.other));
-    if (s.debt > 0) html += line("Debt repaid to the bank", -s.debt);
     html += `<tr class="total"><td>${s.profit >= 0 ? "PROFIT" : "LOSS"}</td><td class="${s.profit >= 0 ? "pos" : "neg"}">${s.profit >= 0 ? M(s.profit) : "\u2212" + M(-s.profit)}</td></tr>`;
     $("#pnl-table").innerHTML = html;
     const notes = [];
@@ -840,6 +839,7 @@ const UI = (() => {
     if (s.screened) notes.push(`<div class="res-note">The test audience scored it ${s.screenScore}/100 before release.</div>`);
     if (s.critics != null) notes.push(`<div class="res-note">The critics settled on ${s.critics}/100 — ${D.criticLabel(s.critics).toLowerCase()}.</div>`);
     if (s.tagline) notes.push(`<div class="res-note">The tagline ran in the papers: “${esc(s.tagline)}”</div>`);
+    if (s.debt > 0) notes.push(`<div class="res-note">Credit line: ${M(s.debt)} drawn to fund the picture, ${GAME.studio.funds < 0 ? "and the box office could not cover it" : "repaid in full from the box office"}</div>`);
     notes.push(`<div class="res-note">Reputation ${s.repDelta >= 0 ? "+" : "−"}${Math.abs(s.repDelta)} → ${Math.round(GAME.studio.reputation)}` +
       (s.profit >= 0 ? " · the bank is friendly now." : " · the bank will mention this at the next review.") + "</div>");
     $("#res-notes").innerHTML = notes.join("");
@@ -901,7 +901,7 @@ const UI = (() => {
       </div>
       <p style="margin-top:14px">📎 <b>The boardroom</b> — your studio's executives (the CFO, the casting director, the PR chief, the distributor, the head of development, and the studio head) pass you a note whenever the situation changes. The advice is real; the delivery is not always kind. Toggle them from the top bar.</p>
       <p style="margin-top:14px">💡 <b>Test screening</b> (60%+ complete, $0.5M) scores the film; under 55 you can reshoot for $1.5M (+8 quality).</p>
-      <p>💰 You start with $15M plus a credit line of ${M(limit)}M (it grows with reputation). Go 20% past the limit and the bank takes the lot.</p>
+      <p>💰 You start with $15M plus a credit line of ${M(limit)}M — the bank lends on *trust*, so hit films grow the line and bombs shrink it. Go 20% past the limit and the bank takes the lot.</p>
       <p>🎯 Quality = 55% script + 45% cast, scaled by how well you budgeted. Dramas and documentaries have legs; action opens hot and fades fast.</p>`);
   }
 

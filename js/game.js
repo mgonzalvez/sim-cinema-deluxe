@@ -7,7 +7,7 @@
 
 const GAME = (() => {
   const D = DATA;
-  const SAVE_KEY = "simcinema_save_v3"; // bumped: advisors (hint) setting added
+  const SAVE_KEY = "simcinema_save_v4"; // bumped: P&L no longer double-counts credit-line debt
   const LEGACY_KEY = "simcinema_legacy_v1";
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -108,7 +108,7 @@ const GAME = (() => {
     try {
       const blob = { studio: S.studio, state: S.state, date: S.date, messages: S.messages,
         scriptOptions: S.scriptOptions, selectedScript: S.selectedScript, rewrites: S.rewrites,
-        budget: S.budget, castOptions: S.castOptions, castPicks: S.castPicks, film: S.film,
+        budget: S.budget, pendingScript: S.pendingScript, castOptions: S.castOptions, castPicks: S.castPicks, film: S.film,
         boxoffice: S.boxoffice, lastFilmSummary: S.lastFilmSummary, filmLog: S.filmLog,
         prestige: S.prestige, bank: S.bank, board: S.board, trends: S.trends,
         awards: S.awards, repHistory: S.repHistory, news: S.news, gameOverType: S.gameOverType,
@@ -556,7 +556,10 @@ const GAME = (() => {
     const debt = Math.max(0, Math.round(-S.studio.funds * 10) / 10);
     S.studio.funds = Math.round((S.studio.funds + gross) * 10) / 10;
     const totalCosts = Math.round((f.costs.production + f.costs.cast + f.costs.dev + f.costs.ads + f.costs.events + f.costs.other) * 10) / 10;
-    const profit = Math.round((gross - totalCosts - debt) * 10) / 10;
+    // debt is a funding source, not an extra cost: the borrowed dollars are
+    // already inside totalCosts. Repayment is a cash-flow event (the gross
+    // above absorbs it); the bank's trust nudge below is the cost of the line.
+    const profit = Math.round((gross - totalCosts) * 10) / 10;
     const margin = totalCosts > 0 ? profit / totalCosts : 0;
     const R = f.quality / 100;
     let grade;
@@ -579,14 +582,17 @@ const GAME = (() => {
       critics: f.reviews ? f.reviews.avg : null,
       debt: debt, totalCosts: totalCosts, costs: f.costs
     };
-    if (debt > 0) G.log(`The studio repays $${debt}M of the credit line from the box office.`, "bad");
+    if (debt > 0) {
+      if (S.studio.funds < 0) G.log(`The box office cannot cover the ${D.money(debt)} credit line. The bank is circling.`, "bad");
+      else G.log(`The studio repays ${D.money(debt)} of the credit line from the box office.`);
+    }
     G.log(`"${f.title}" closes: ${D.money(gross)}${profit >= 0 ? " in the black." : " in the red."}`, "story");
     G.logFilm(f, { gross, profit, grade, weeks: bo.week });
 
     // ---- metagame updates ----
     S.bank.trust = Math.round(D.clamp(S.bank.trust
       + (margin > 1 ? 12 : margin > 0.3 ? 6 : margin > 0 ? 3 : margin > -0.3 ? -4 : -10)
-      - (debt > 0 ? 5 : 0), 0, 100) * 10) / 10;
+      - (debt > 0 ? 9 : 0), 0, 100) * 10) / 10;
     S.prestige = Math.round(D.clamp(S.prestige + { "S": 14, "A+": 10, "A": 7, "B+": 4, "B": 2, "C": 0, "D": -3, "F": -8 }[grade], 0, 100) * 10) / 10;
     if (grade === "S" || grade === "A+") S.awards.push({ title: f.title, poster: f.poster || null, name: D.pick(D.AWARDS), razzie: false, date: G.dateStr(), y: S.date.year });
     else if (grade === "F") S.awards.push({ title: f.title, poster: f.poster || null, name: D.pick(D.RAZZIES), razzie: true, date: G.dateStr(), y: S.date.year });
@@ -691,79 +697,189 @@ const GAME = (() => {
     const S = G.S, st = S.studio, f = S.film;
     const tr = S.trends || G._internal.defaultTrends();
     const ranked = Object.keys(D.GENRES).sort((a, b) => tr[b] - tr[a]);
+    const heatOf = (g) => (tr[g] != null ? tr[g] : 1);
     const c = {
-      M: D.money, funds: st.funds, limit: G.creditLimit(),
+      M: D.money, sM: (v) => (v < 0 ? "−" + D.money(-v) : D.money(v)),
+      funds: st.funds, limit: G.creditLimit(),
       fundable: Math.round((st.funds + G.creditLimit()) * 10) / 10,
       rep: Math.round(st.reputation), prestige: Math.round(S.prestige),
       talentOff: Math.min(15, Math.round(S.prestige * 0.15)),
       bankTrust: Math.round(S.bank.trust), boardApproval: Math.round(S.board.approval),
+      filmsMade: st.films,
       hotGenre: ranked[0], coldGenre: ranked[ranked.length - 1],
-      hotHeat: tr[ranked[0]] != null ? tr[ranked[0]] : 1,
-      coldHeat: tr[ranked[ranked.length - 1]] != null ? tr[ranked[ranked.length - 1]] : 1
+      hotHeat: heatOf(ranked[0]), coldHeat: heatOf(ranked[ranked.length - 1])
+    };
+    // the same math release() uses, so an exec's projection IS the game's:
+    // opening-week gross for a given quality/genre/buzz, and the decay curve
+    const openingOf = (quality, genre, net, rep) => {
+      const g = D.GENRES[genre];
+      if (!g) return 0;
+      const R = quality / 100;
+      const buzzFactor = Math.max(0.35, 1 + 5.5 * (net / 100));
+      return g.audience * heatOf(genre) * buzzFactor * (0.55 + 0.55 * R) * (1 + rep / 250);
+    };
+    const decayOf = (quality, genre) => {
+      const g = D.GENRES[genre];
+      return D.clamp(0.62 + 0.32 * (quality / 100) + (g ? g.legs || 0 : 0), 0.5, 0.9);
+    };
+    const runTotal = (opening, quality, genre) => {
+      const d = decayOf(quality, genre);
+      let t = 0, w = opening;
+      for (let i = 0; i < 14 && w >= 1; i++) { t += w; w *= d; }
+      return Math.round(t * 10) / 10;
     };
     if (topic === "script") {
       const sel = S.selectedScript != null ? S.scriptOptions[S.selectedScript] : null;
-      let bestIdx = null;
-      (S.scriptOptions || []).forEach((o, i) => { if (bestIdx == null || o.quality > S.scriptOptions[bestIdx].quality) bestIdx = i; });
+      const opts = (S.scriptOptions || []).map((o) => ({
+        genre: o.genre, title: o.title, quality: o.quality, estBudget: o.estBudget, devCost: o.devCost,
+        audience: D.GENRES[o.genre].audience, heat: heatOf(o.genre)
+      }));
+      let bestIdx = null, smartIdx = null, bestQ = 0, smartScore = -1;
+      (S.scriptOptions || []).forEach((o, i) => {
+        if (bestIdx == null || o.quality > S.scriptOptions[bestIdx].quality) bestIdx = i;
+        const s = o.quality * D.GENRES[o.genre].audience * heatOf(o.genre);
+        if (smartIdx == null || s > smartScore) { smartIdx = i; smartScore = s; }
+      });
+      if (bestIdx != null) bestQ = S.scriptOptions[bestIdx].quality;
       Object.assign(c, {
-        rewrites: S.rewrites, selIdx: S.selectedScript, sel,
+        rewrites: S.rewrites, selIdx: S.selectedScript, sel, opts,
         genre: sel ? sel.genre : "—", title: sel ? sel.title : "—",
         quality: sel ? sel.quality : 0,
-        trend: sel && tr[sel.genre] != null ? tr[sel.genre] : 1,
-        bestIdx
+        trend: sel ? heatOf(sel.genre) : 1,
+        audience: sel ? D.GENRES[sel.genre].audience : 1,
+        bestIdx, smartIdx, bestQ,
+        devCost: sel ? Math.round((sel.devCost + S.rewrites * 0.3) * 10) / 10 : 0
       });
     } else if (topic === "budget") {
       const p = S.pendingScript || {};
+      const est = p.estBudget || 1;
+      const qScript = p.quality != null ? p.quality : 55;
+      const factorAt = (b) => 0.5 + 0.5 * Math.min(1, b / est) + 0.1 * Math.min(1, Math.max(0, b / est - 1));
+      const projAt = (b) => Math.round(D.clamp((0.55 * qScript + 0.45 * 45) * factorAt(b), 5, 100));
       Object.assign(c, {
-        budget: S.budget, est: p.estBudget || 1, ratio: S.budget / Math.max(1, p.estBudget || 1),
+        budget: S.budget, est, ratio: Math.round((S.budget / Math.max(1, est)) * 100) / 100,
         genre: p.genre || "—", title: p.title || "—",
-        proj: G.projectedQuality(), weeks: G.productionWeeks(), weekly: G.weeklyProdCost()
+        proj: projAt(S.budget), projIdeal: projAt(est),
+        weeks: G.productionWeeks(), weekly: G.weeklyProdCost()
       });
     } else if (topic === "casting") {
       const o = S.castOptions, p = S.castPicks;
       const get = (slot) => (o && p[slot] != null ? o[slot][p[slot]] : null);
-      const lead = get("lead");
-      let valueLoss = 0;
-      if (o && lead) {
-        const val = (t) => t.draw / Math.max(0.2, t.cost);
-        const best = Math.max(...o.lead.map(val));
-        valueLoss = Math.max(0, (best - val(lead)) / best);
+      const lead = get("lead"), co = get("co"), sup = get("sup"), dir = get("dir");
+      const val = (t) => (t ? t.draw / Math.max(0.2, t.cost) : 0);
+      let valueLoss = 0, bestLead = null, cheapLead = null;
+      if (o && o.lead && lead) {
+        bestLead = o.lead.reduce((a, x) => val(x) > val(a) ? x : a);
+        cheapLead = o.lead.reduce((a, x) => x.cost < a.cost ? x : a);
+        valueLoss = Math.max(0, (val(bestLead) - val(lead)) / Math.max(0.001, val(bestLead)));
       }
+      const facts = (slot, key) => {
+        const arr = (o && o[slot]) || [];
+        if (!arr.length) return null;
+        return {
+          best: arr.reduce((a, x) => x[key] > a[key] ? x : a),
+          cheap: arr.reduce((a, x) => x.cost < a.cost ? x : a)
+        };
+      };
+      const leadF = facts("lead", "draw");
+      const dirF = facts("dir", "score");
+      const pScript = S.pendingScript || {};
+      const qScript = pScript.quality != null ? pScript.quality
+        : (S.scriptOptions && S.selectedScript != null ? S.scriptOptions[S.selectedScript].quality : 55);
+      const wOf = (t, k) => (t ? t[k] / Math.max(0.2, t.cost) : 0);
+      const valuePick = (slot, key) => {
+        const arr = (o && o[slot]) || [];
+        if (!arr.length) return null;
+        return arr.reduce((a, x) => wOf(x, key) > wOf(a, key) ? x : a);
+      };
+      const vLead = valuePick("lead", "draw"), vCo = valuePick("co", "draw"), vSup = valuePick("sup", "draw"), vDir = valuePick("dir", "score");
+      const castScore = Math.round((lead ? lead.draw * 0.35 : 0) + (co ? co.draw * 0.30 : 0) + (sup ? sup.draw * 0.20 : 0) + (dir ? dir.score * 0.15 : 0));
+      const valueCastScore = Math.round((vLead ? vLead.draw * 0.35 : 0) + (vCo ? vCo.draw * 0.30 : 0) + (vSup ? vSup.draw * 0.20 : 0) + (vDir ? vDir.score * 0.15 : 0));
+      const est = pScript.estBudget || 1;
+      const bf = 0.5 + 0.5 * Math.min(1, S.budget / est) + 0.1 * Math.min(1, Math.max(0, S.budget / est - 1));
       Object.assign(c, {
-        total: G.castTotalCost(), lead: get("lead"), co: get("co"), sup: get("sup"),
-        dir: get("dir"), valueLoss
+        total: G.castTotalCost(), lead, co, sup, dir, valueLoss,
+        leadDraw: lead ? lead.draw : 0, leadCost: lead ? lead.cost : 0,
+        leadSocial: lead ? lead.social : 0,
+        bestLead, cheapLead,
+        leadMaxDraw: leadF ? leadF.best.draw : 0, leadMaxCost: leadF ? leadF.best.cost : 0,
+        dirScore: dir ? dir.score : 0, dirCost: dir ? dir.cost : 0,
+        bestDir: dirF ? dirF.best : null, cheapDir: dirF ? dirF.cheap : null,
+        afterFees: Math.round((st.funds + G.creditLimit() - G.castTotalCost()) * 10) / 10,
+        projQ: Math.round(D.clamp((0.55 * qScript + 0.45 * castScore) * bf, 5, 100)),
+        valueProjQ: Math.round(D.clamp((0.55 * qScript + 0.45 * valueCastScore) * bf, 5, 100))
       });
     } else if (topic === "production" && f) {
+      const net = G.netBuzz();
+      const opening = openingOf(f.quality, f.genre, net, st.reputation);
+      const spent = Math.round((f.costs.production + f.costs.cast + f.costs.dev + f.costs.ads + f.costs.events + f.costs.other) * 10) / 10;
+      const projCost = Math.round((spent + G.weeklyProdCost() * Math.max(0, f.totalWeeks - f.week)) * 10) / 10;
       Object.assign(c, {
         week: f.week, totalWeeks: f.totalWeeks, progress: G.totalProduction(),
-        quality: f.quality, social: f.social, buzzPos: f.buzzPos, buzzNeg: f.buzzNeg,
-        net: G.netBuzz(), genre: f.genre, title: f.title,
+        quality: Math.round(f.quality), social: f.social,
+        buzzPos: Math.round(f.buzzPos), buzzNeg: Math.round(f.buzzNeg),
+        net: Math.round(net), genre: f.genre, title: f.title,
         screened: f.screened, screenScore: f.screenScore,
         canScreen: G.canScreen(), canRelease: G.canRelease(),
         taglineSet: !!f.tagline, weekCost: G.weeklyProdCost(),
-        spent: Math.round((f.costs.production + f.costs.cast + f.costs.dev + f.costs.ads + f.costs.events + f.costs.other) * 10) / 10
+        spent,
+        opening: Math.round(opening * 10) / 10,
+        projTotal: runTotal(opening, f.quality, f.genre),
+        projCost,
+        decay: Math.round(decayOf(f.quality, f.genre) * 1000) / 10,
+        socialGain: Math.round(9 * (1 + f.social / 200) * 10) / 10
       });
     } else if (topic === "boxoffice" && S.boxoffice) {
       const bo = S.boxoffice;
       let top = null;
       for (const r of bo.rivals) if (!top || r.last > top.last) top = r;
+      const decay = decayOf(Math.round(bo.my.q * 100), bo.my.genre);
+      // at week 0 the opening hasn't logged yet, so seed the run with the potential
+      let projTotal = bo.my.total + (bo.my.last > 0 ? 0 : bo.my.potential);
+      if (!bo.done) {
+        let w = bo.my.last > 0 ? bo.my.last : bo.my.potential;
+        for (let i = 1; i < 14; i++) { w *= decay; if (w < 1) break; projTotal += w; }
+      }
+      const costs = f ? Math.round((f.costs.production + f.costs.cast + f.costs.dev + f.costs.ads + f.costs.events + f.costs.other) * 10) / 10 : 0;
+      const prev = bo.curve.length >= 2 ? bo.curve[bo.curve.length - 2] : bo.my.last;
       Object.assign(c, {
-        week: bo.week, rank: parseInt(String(G.boRank()).replace("#", ""), 10) || 0, gross: bo.my.total,
-        lastWeek: bo.my.last, genre: bo.my.genre, heat: tr[bo.my.genre] || 1,
-        critics: bo.my.critics || 0, done: bo.done, topRival: top
+        week: bo.week, rank: parseInt(String(G.boRank()).replace("#", ""), 10) || 0,
+        gross: Math.round(bo.my.total * 10) / 10,
+        last: Math.round(bo.my.last * 10) / 10,
+        prev: Math.round(prev * 10) / 10,
+        genre: bo.my.genre, heat: heatOf(bo.my.genre),
+        critics: bo.my.critics || 0, done: bo.done, topRival: top,
+        decay: Math.round(decay * 1000) / 10,
+        projTotal: Math.round(projTotal * 10) / 10,
+        costs
       });
     } else if (topic === "results" && S.lastFilmSummary) {
       const s = S.lastFilmSummary;
+      const tc = Math.max(0.01, s.totalCosts);
+      const parts = { production: s.costs.production, cast: s.costs.cast, dev: s.costs.dev, ads: s.costs.ads, events: s.costs.events + s.costs.other };
+      let biggest = "production";
+      for (const k in parts) if (parts[k] > parts[biggest]) biggest = k;
       Object.assign(c, {
-        grade: s.grade, profit: s.profit, margin: s.margin, quality: s.quality,
-        gross: s.gross, repDelta: s.repDelta, screened: s.screened, weeks: s.weeks, genre: s.genre
+        grade: s.grade, profit: s.profit, margin: Math.round(s.margin * 100) / 100,
+        quality: s.quality, gross: s.gross, repDelta: s.repDelta,
+        screened: s.screened, weeks: s.weeks, genre: s.genre,
+        totalCosts: s.totalCosts, debt: s.debt,
+        castCost: s.costs.cast, prodCost: s.costs.production, devCost: s.costs.dev, adsCost: s.costs.ads,
+        castShare: Math.round((s.costs.cast / tc) * 100),
+        adsShare: Math.round((s.costs.ads / tc) * 100),
+        biggest
       });
     } else if (topic === "hq") {
-      Object.assign(c, { tab: G._hintTab || "dashboard", lastGrade: S.lastFilmSummary ? S.lastFilmSummary.grade : null });
+      const s = S.lastFilmSummary;
+      Object.assign(c, {
+        tab: G._hintTab || "dashboard",
+        lastGrade: s ? s.grade : null,
+        lastMargin: s ? Math.round(s.margin * 100) / 100 : null,
+        lastProfit: s ? s.profit : null
+      });
     }
     return c;
   };
-
   // the one public entry point: the UI asks, an exec answers
   G.hint = function (topic) {
     const S = G.S;

@@ -51,20 +51,32 @@ A toggle-able bench of six parodic execs (`D.ADVISORS`: Gerald Fitch studio
 head, Dot Quince CFO, Babs Merriweather development, Percival Loam casting,
 Vivienne St. Clair PR, Mona Delacroix distribution — each with name, title,
 monogram, and accent color) who pass sticky notes on every screen.
-- **Content** (`data.js`): `HINTS` — ~55 templates, each
-  `{ id, topic, exec, when?(ctx), t(ctx) }`; `*stars*` in a note render as
-  `<em>` in the UI. `D.pickHint(topic, ctx, avoidIds)` gates on `when`,
-  rotates (avoid the last few template ids), and picks pure-gossip `flavor`
-  templates ~15% of the time. Topics: `script|budget|casting|production|
-  boxoffice|results|hq`.
+- **Content** (`data.js`): `HINTS` — 74 templates (67 decision-grade + 7 flavor), each
+  `{ id, topic, exec, pri, when?(ctx), t(ctx), flavor? }`; `*stars*` render as
+  `<em>` in the UI. Notes quote live numbers from ctx (fees vs. draw, projected
+  quality, opening, run totals, P&L lines), never adjectives. `pri` tiers the
+  pool: **3 = critical** (the thing that will F the picture — star-for-value,
+  silent buzz meters, red winning, cash bleed, unaffordable cast, debt the
+  film can't cover), **2 = important**, **1 = routine**. `D.pickHint(topic,
+  ctx, avoidIds)`: if any pri-3 gate is live it is served (never diluted by
+  small talk) and is **exempt from the anti-repetition rotation** — while the
+  problem exists the office keeps pointing at it; otherwise it draws the
+  weighted 85% from *informational* templates only, with pure-gossip `flavor`
+  templates as the 15% lottery / thin-week fallback. Topics: `script|budget|
+  casting|production|boxoffice|results|hq`.
 - **Engine** (`game.js`, DOM-free): `G._hintCtx(topic)` builds the ctx an exec
-  "sees" (funds/limit/fundable, rep, prestige, talentOff, bank trust, board
-  approval, hot/cold genre + heat, plus per-topic fields — budget ratio,
-  cast picks + valueLoss, buzz/week/progress/screened, bo rank/week/critics,
-  results P&L, hq tab). `G.hint(topic)` is the only public entry: returns
+  "sees" — signed money (`sM`), funds/limit/fundable, rep, prestige, bank
+  trust, board approval, hot/cold genre + heat, plus per-topic decision
+  fields: script per-option quality/estBudget/devCost/audience + `bestIdx`/
+  `smartIdx`/`devCost`; budget `ratio`/`proj`; casting per-slot picks +
+  `bestLead`/`cheapLead`/`bestDir`/`cheapDir`/`valueLoss`/`afterFees`/`projQ`;
+  production `opening`/`projTotal`/`decay`/`socialGain`/buzz + `runTotal`
+  projection (same math as `release()`); boxoffice `last`/`prev`/`decay`/
+  `projTotal`/`costs`/rank/critics; results P&L breakdown + `biggest` cost
+  line + `margin`. `G.hint(topic)` is the only public entry: returns
   `{ exec, text, tid }` or null (null on title/studio/gameover, or when
   advisors are off); tracks recent tids in `G._hintSeen` per topic.
-- **Toggle**: `G.toggleAdvisors()` → `S.advisorsOn` (in the v3 save blob) +
+- **Toggle**: `G.toggleAdvisors()` → `S.advisorsOn` (in the v4 save blob) +
   `simcinema_advisors` pref key that survives careers; `GAME.advisorsOn`
   getter falls back to the pref on the title screen. UI: 📎 top-bar button.
 - **UI** (`ui.js`): one `.hint-slot[data-topic=…]` per screen (7 in
@@ -84,15 +96,19 @@ monogram, and accent color) who pass sticky notes on every screen.
 and the boardroom: `hint(topic)`, `toggleAdvisors`, `advisorsOn`,
 `advisorsPref`.
 
-Save format: localStorage key `simcinema_save_v3` (whole state blob; bumped
-when the HQ metagame landed, then the advisors setting — safe to bump again if
-the shape changes).
+Save format: localStorage key `simcinema_save_v4` (whole state blob; bumped
+when the HQ metagame landed, then the advisors setting, then the P&L debt fix
++ `pendingScript` — safe to bump again if the shape changes).
 
 ### Key game constants (balance is sensitive — re-run tools/ after changes)
 
 - Starting funds $15M; credit line `4 + bank.trust*0.2` ($M, trust starts 50);
-  bankruptcy at 120% over the limit; debt repaid from gross in `finishBoxOffice`.
-  Board approval 0 = fired (one reprieve per career; see HQ section).
+  bankruptcy at 120% over the limit. **Debt is a funding source, not an extra
+  cost**: the P&L is `gross − totalCosts` (the borrowed dollars are already
+  inside totalCosts); repayment is a cash-flow event, and the *price* of the
+  line is a −9 bank-trust nudge for every film that used it (the dial that
+  keeps strong play inside the balance band). Board approval 0 = fired (one
+  reprieve per career; see HQ section).
 - Quality = `(0.55*scriptQuality + 0.45*castScore) * budgetFactor` (±event
   deltas, +8 reshoot).
 - Opening = `audience * max(0.35, 1 + 5.5*netBuzz/100) * (0.55 + 0.55*R)
@@ -133,20 +149,39 @@ the shape changes).
   **Studio Headquarters metagame** — between-films hub (dashboard, trophy room,
   board w/ fire branch + one reprieve, genre trends, gossip feed) backed by
   `prestige`/`bank`/`board`/`trends`/`awards`/`repHistory`/`news` state;
-  **The Boardroom** advisory hint system — six parodic execs (Gerald Fitch
-  studio head, Dot Quince CFO, Babs Merriweather development, Percival Loam
-  casting, Vivienne St. Clair PR, Mona Delacroix distribution) pass
-  context-aware sticky notes on every screen (`data.js` `ADVISORS`/`HINTS`/
-  `pickHint`, engine `GAME.hint(topic)`, UI `renderHint`); notes re-roll on a
-  per-topic "signature" change so they comment live, ~15% are pure gossip;
-  📎 top-bar toggle → `S.advisorsOn` + `simcinema_advisors` pref key;
-  save key bumped to `simcinema_save_v3`. Purely informational — zero balance
-  impact.
+   **The Boardroom** advisory hint system — six parodic execs (Gerald Fitch
+   studio head, Dot Quince CFO, Babs Merriweather development, Percival Loam
+   casting, Vivienne St. Clair PR, Mona Delacroix distribution) pass
+   context-aware sticky notes on every screen (`data.js` `ADVISORS`/`HINTS`/
+   `pickHint`, engine `GAME.hint(topic)`, UI `renderHint`); notes re-roll on a
+   per-topic "signature" change so they comment live, ~15% are pure gossip;
+   📎 top-bar toggle → `S.advisorsOn` + `simcinema_advisors` pref key;
+   save key bumped to `simcinema_save_v3`. Purely informational — zero balance
+   impact.
+   **Decision-grade hint redesign + P&L debt fix** — the notes were elliptical
+   and generic, and a structural bug (debt double-counted in the P&L) made
+   *every* credit-funded film read as a loss, so first films F'd or the studio
+   went bankrupt no matter how well the player actually played. Now:
+   `G._hintCtx` quotes live decision numbers (fees vs. draw, projected quality,
+   opening, run totals, P&L lines);    `HINTS` are 74 priority-tiered templates (67 informational + 7 flavor)
+   where critical (pri-3) notes fire first and persist while the problem does;
+   `pickHint` never pads a thin week with small talk; `finishBoxOffice` P&L is
+   `gross − totalCosts` (debt is a funding source; the −9 trust nudge prices
+   the line); save key bumped to `simcinema_save_v4` (+`pendingScript` in the
+   blob). Skilled first film went from 40% hit/−$2.2M avg to ≈68–71% hit/
+   +$5–6M avg; the office now names the mistake ("the value card is Otis Vale
+   at $1.3M for 54") instead of sighing about weather.
 - **Balance note**: the newest risk axes are the critic step and the HQ layer
-  (bank trust, fired branch, trends). Current strong play measures ≈ 83–86%
-  hit films / 78–86% of 8-film careers survive with $110–125M avg final funds
-  (baseline before those was 87%/93%) — still within design intent (strong
-  play wins, sloppy loses). Re-measure after any balance change.
+  (bank trust, fired branch, trends), plus the **P&L debt fix** — `finishBoxOffice`
+  used to compute `profit = gross − totalCosts − debt`, double-counting the
+  credit line (the borrowed dollars are already inside `totalCosts`), which
+  structurally failed ~1 in 3 strong films. It is now `gross − totalCosts`,
+  with the −9 bank-trust nudge for line use as the counterweight. Current
+  strong play measures ≈ 90–94% hit films / 79–88% of 8-film careers survive
+  with $115–132M avg final funds (pre-fix was 83–86% / 78–86% / $110–125M —
+  the fix lifts skilled play; the −9 dial holds survival in the 75–80 band) —
+  within design intent (strong play wins, sloppy loses; sloppy still 0% hit).
+  Re-measure after any balance change.
 - **Note**: `styles.css` needs `[hidden] { display: none !important; }` —
   author `display` rules (`.topbar`, `.modal-backdrop`) override the UA
   stylesheet's `[hidden]` rule, so the topbar/modal render on every screen
@@ -160,7 +195,10 @@ the shape changes).
    + advance reviews + story-message highlighting~~ done;
    ~~Studio Headquarters metagame (5 tabs, fire branch, trends, prestige)~~ done.
    ~~The Boardroom advisory hint system (six execs, live notes, 📎 toggle)~~
-   done (commit b4055dc).
+   done (commit b4055dc);
+   ~~Decision-grade hint redesign + P&L debt double-count fix~~ done
+   (priority-tiered `HINTS`, `G._hintCtx` live numbers, `finishBoxOffice`
+   `gross − totalCosts`, −9 trust dial, save v4) — see Current Status.
 2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass.
 
@@ -170,6 +208,82 @@ Design guardrail for everything below: keep the balance targets
 (~85% hit / 75–80% career survival / $100–130M avg) and the loving-parody
 tone; run `tools/balance-test.js --smoke && tools/career-test.js &&
 tools/browser-test.js` after each build; bump the save key on shape changes.
+
+### Planned next (this batch — designed, not started)
+
+Three features agreed with the player. Recommended build order is by risk:
+**trade-paper (lowest) → dashboard (medium) → wider casting (highest,
+balance + save-bump)**. All three are designed against the *existing*
+machinery so they stay honest and cheap to verify.
+
+1. **Trade-paper genre trends on the script screen** (lowest risk).
+   The script screen offers 3 pages but the genre trend (`S.trends`, 0.75–1.3,
+   which already multiplies the opening) is invisible there — the player picks
+   blind. Add a "Variety"-style **industry newspaper** panel: a dated masthead,
+   1–3 hot/cold headlines (reuse/extend `D.makeHeadlines`), and a ranked heat
+   list of **all 8 genres** with the 3 offered pages tagged "on offer."
+   - Purely informational — it surfaces the trend the sim already applies; do
+     not make the trend more influential than the existing multiplier.
+   - The heat shown must be the *actual* `S.trends` value `release()` uses
+     (honest: what the paper says is what you get).
+   - Re-generate the paper when the 3 scripts re-roll (a fresh page, a fresh
+     week); keep it stable if the player re-enters without re-rolling.
+   - Files: `data.js` (`trendPaper(trends, offeredGenres)`), `game.js`
+     (`G.trendPaper()`, DOM-free), `ui.js` (`#trade-paper` in `RENDERERS.script`),
+     `index.html` + `styles.css` (newspaper styling). No save-blob shape change.
+   - Show a heat **bar** + hot/cool/flat label rather than the raw `1.13`
+     number (reads like a trade paper; bar length encodes the value).
+
+2. **Production mini-dashboard — readiness & projected-success gauges** (medium).
+   An **always-on right-hand sidebar** of color-coded gauges (SimCity R/C/I
+   style) giving a glanceable read of the film in the making: one hero
+   **"success likelihood"** composite + six metric bars — projected quality,
+   buzz/awareness (net), projected opening ($/week), projected run vs. costs,
+   budget/cash left, phase completion.
+   - **Reuse the game's own math** — extend/reuse `G._hintCtx("production")`,
+     which already computes `quality`, `net`, `opening`, `projTotal`,
+     `projCost`, `weekCost`, `progress`, `funds` from `openingOf`/`runTotal`/
+     `decayOf` (the same math `release()`/`finishBoxOffice` use). Add a
+     DOM-free `G.projection()` returning that bundle. Do **not** duplicate the
+     formulas.
+   - The composite `success` (0–100) derives from expected margin + quality +
+     net buzz; tune it to *correlate* with the eventual grade but **not**
+     perfectly reveal it (the critic step, buzz noise, and `rand(0.9,1.1)`
+     must still land the real outcome). Frame it as a projection, not a promise.
+   - Re-render after every `passWeek`/`buyAd`/event/`testScreen`/`reshoot` so
+     it stays live. Normalization: quality & buzz are already 0–100-ish;
+     define a sane display max for opening/cash (relative, not absolute $).
+   - Purely informational — no mechanical effect (the guardrail holds).
+   - Files: `game.js` (`G.projection()`), `ui.js` (`renderDashboard()` called
+     from `renderProduction()`), `index.html` (`#prod-dashboard` sidebar),
+     `styles.css`. No save-blob shape change.
+   - 7 gauges is dense on mobile — pair with the existing "mobile pass" item.
+
+3. **Wider casting pool** (highest risk — balance + save bump).
+   Casting offers 3 candidates per actor slot (lead/co-lead/sup) + 5 directors,
+   drawn from a 5-tier table (Unknown $0.1–0.5M → A-List $4.5–8M, ~½ parody
+   personas). The 1999 original presented a **wide pool** across the full fee
+   range; widen ours to open the decision space.
+   - **Size:** 6 each for lead/co-lead/sup, 8 for director.
+   - **Composition — guarantee a spread:** always ≥1 low-cost **Unknown** and
+     ≥1 big star (**A-List/Bankable**) per actor slot, rest random — so the
+     value-vs-name tradeoff is *always* real (never three mid-tier or three
+     stars). Open: whether the director slot (a separate `makeDirector`
+     generator, no actor tiers) gets the same guarantee.
+   - **UI:** add **sort controls** (fee / draw / name) + a longer list so 6–8
+     cards stay navigable. Sort is session UI-state (not saved).
+   - Files: `game.js` (`offerCasting` pool build ~line 232 → 6/6/6/8 + spread
+     pass), `data.js` (`makeActor`), `ui.js` (grid reflow for 26 cards + sort
+     row). `castOptions` shape changes (6 not 3) → **bump the save key
+     (v4 → v5)**.
+   - **Balance:** a guaranteed cheap unknown *helps* the value play and a
+     guaranteed star *adds* a (bad) temptation — re-run `--skilled` +
+     `career-test`; expect hit rate to stay in-band, tune the spread if
+     survival drifts. `browser-test` picks the first card / re-picks cheapest,
+     so it should stay green — verify.
+   - The casting hints (`bestLead`/`cheapLead`/`valueLoss` in `_hintCtx`)
+     get *richer* automatically (the "value card is X" note now has a real
+     target) — no hint change needed.
 
 ### Ready to build (small, mostly cosmetic-safe)
 
@@ -218,9 +332,11 @@ tools/browser-test.js` after each build; bump the save key on shape changes.
   `node tools/balance-test.js --smoke && node tools/career-test.js`
   (smoke also exercises the hint engine across a full game: note volume,
   exec variety, and the advisor toggle).
-- New hint templates: give them a unique `id`, a `topic`, and reference only
-  ctx fields that `G._hintCtx` builds for that topic; keep at least one
-  always-true template per topic so the pool never empties.
+- New hint templates: give them a unique `id`, a `topic`, a `pri` tier (3 =
+  will-F-the-picture, 2 = important, 1 = routine; leave `pri` off only for
+  `flavor` small talk), and reference only ctx fields that `G._hintCtx` builds
+  for that topic; keep at least one always-true *informational* template per
+  topic so the weighted pool never empties.
 - Keep browser test green after any ui.js/index.html/styles.css change:
   `node tools/browser-test.js` (drives the real UI in headless Chrome;
   `PHASE=production|boxoffice|script|casting|reviews|results|title` captures a
