@@ -241,8 +241,46 @@ const UI = (() => {
     $("#rewrite-val").textContent = `${n} week${n === 1 ? "" : "s"} · +${M(n * 0.3)}`;
   }
 
+  // the industry newspaper: heat bars print the SAME S.trends release() uses,
+  // with the three offered pages tagged — purely informational, no new math
+  function renderTradePaper() {
+    const el = $("#trade-paper");
+    if (!el) return;
+    const p = GAME.trendPaper();
+    if (!p) { el.hidden = true; return; }
+    const rows = p.heat.map(h => {
+      const w = Math.max(3, ((h.heat - 0.75) / 0.55) * 100);
+      const cls = h.heat > 1.05 ? "hot" : h.heat < 0.95 ? "cold" : "";
+      const word = cls === "hot" ? "in" : cls === "cold" ? "out" : "steady";
+      const pct = Math.round((h.heat - 1) * 100);
+      return `<div class="tp-row ${cls}">` +
+        `<span class="tp-name">${esc(h.genre)}${h.onOffer ? '<span class="tp-offer">on offer</span>' : ""}</span>` +
+        `<div class="bar tp-bar"><div class="bar-fill ${cls === "hot" ? "buzz-pos" : cls === "cold" ? "buzz-neg" : ""}" style="width:${w}%"></div></div>` +
+        `<span class="tp-val">${pct >= 0 ? "+" : "\u2212"}${Math.abs(pct)}% ${word}</span></div>`;
+    }).join("");
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="tp-masthead">
+        <span class="tp-nameplate">THE SCREEN &amp; SOUND TRADE</span>
+        <span class="tp-date">${esc(p.date)}</span>
+        <span class="tp-tag">Industry Edition</span>
+      </div>
+      <div class="tp-columns">
+        <div>
+          <div class="tp-section-title">This week in the town</div>
+          <div class="tp-headlines">${p.headlines.map(h => `<div class="tp-head">${esc(h)}</div>`).join("")}</div>
+        </div>
+        <div>
+          <div class="tp-section-title">Genre heat — what opens well</div>
+          ${rows}
+        </div>
+      </div>
+      <p class="tp-note">Heat multiplies the opening weekend — for your picture <b>and</b> the rivals. The paper prints what the season knows; it does not know what you will do.</p>`;
+  }
+
   RENDERERS.script = function () {
     scriptPosters();
+    renderTradePaper();
     renderScriptGrid();
     const r = $("#rewrite-slider");
     if (+r.value !== GAME.S.rewrites) r.value = GAME.S.rewrites;
@@ -294,6 +332,33 @@ const UI = (() => {
     ["dir", "Director"]
   ];
 
+  // sort is session UI-state only — it reorders the display, never the array,
+  // so picks (index-based) survive re-sorting
+  let castSortKey = "none";
+
+  function sortOrder(slot, arr) {
+    const idx = arr.map((_, i) => i);
+    if (castSortKey === "fee") idx.sort((a, b) => arr[a].cost - arr[b].cost);
+    else if (castSortKey === "draw") {
+      const k = slot === "dir" ? "score" : "draw";
+      idx.sort((a, b) => arr[b][k] - arr[a][k]);
+    } else if (castSortKey === "name") idx.sort((a, b) => arr[a].name.localeCompare(arr[b].name));
+    return idx;
+  }
+
+  function renderCastSort() {
+    const el = $("#cast-sort");
+    if (!el) return;
+    const opts = [["none", "Default"], ["fee", "Fee \u2191"], ["draw", "Draw / Score \u2193"], ["name", "Name A–Z"]];
+    el.innerHTML = `<span>Sort the lists</span>` +
+      opts.map(([k, l]) => `<button data-k="${k}" class="${k === castSortKey ? "active" : ""}">${l}</button>`).join("");
+    $$("#cast-sort button").forEach(b => b.addEventListener("click", () => {
+      castSortKey = b.dataset.k;
+      SFX.play.click();
+      renderCasting();
+    }));
+  }
+
   function talentHTML(slot, t, idx) {
     const isDir = slot === "dir";
     const sel = GAME.S.castPicks[slot] === idx;
@@ -327,10 +392,11 @@ const UI = (() => {
   function renderCasting() {
     const o = GAME.S.castOptions;
     if (!o) return;
+    renderCastSort();
     $("#casting-grid").innerHTML = SLOTS.map(([slot, label]) => `
       <div class="cast-slot">
         <h3>${label}</h3>
-        ${o[slot].map((t, i) => talentHTML(slot, t, i)).join("")}
+        ${sortOrder(slot, o[slot]).map(i => talentHTML(slot, o[slot][i], i)).join("")}
       </div>`).join("");
     $$("#casting-grid .talent-card").forEach((c) => {
       c.addEventListener("click", () => {
@@ -429,6 +495,42 @@ const UI = (() => {
     $("#btn-release").disabled = !GAME.canRelease();
   }
 
+  // the production mini-dashboard: a glanceable read of the picture in the
+  // making, driven entirely by GAME.projection() (the game's own math)
+  function renderDashboard() {
+    const el = $("#prod-dashboard");
+    if (!el) return;
+    const p = GAME.projection();
+    if (!p) { el.hidden = true; return; }
+    el.hidden = false;
+    const clampPct = (v) => Math.max(0, Math.min(100, v));
+    const dg = (label, w, val, cls) => `<div class="dg-row ${cls || ""}">` +
+      `<div class="dg-top"><span>${label}</span><b>${val}</b></div>` +
+      `<div class="bar dg-bar"><div class="bar-fill ${cls === "good" ? "buzz-pos" : cls === "bad" ? "buzz-neg" : ""}" style="width:${clampPct(w)}%"></div></div></div>`;
+    const runMax = Math.max(0.1, p.projTotal, p.projCost) * 1.1;
+    const run = `
+      <div class="dg-row ${p.projTotal > p.projCost ? "good" : p.projTotal < p.projCost * 0.8 ? "bad" : ""}">
+        <div class="dg-top"><span>Run vs costs</span><b>${M(p.projTotal)} vs ${M(p.projCost)}</b></div>
+        <div class="dg-bar-wrap"><div class="bar dg-bar"><div class="bar-fill ${p.projTotal > p.projCost ? "buzz-pos" : p.projTotal < p.projCost * 0.8 ? "buzz-neg" : ""}" style="width:${clampPct(p.projTotal / runMax * 100)}%"></div></div>` +
+        `<div class="dg-tick" style="left:${clampPct(p.projCost / runMax * 100)}%" title="break-even"></div></div></div>`;
+    const words = { hit: "tracking to hit", viable: "viable — weather dependent", rough: "a rough road", cliff: "on a cliff" };
+    $("#dash-body").innerHTML = `
+      <div class="dg-hero ${p.band}">
+        <div class="dg-hero-k">Projected success</div>
+        <div class="dg-hero-v">${p.success}</div>
+        <div class="dg-hero-word">${words[p.band] || ""}</div>
+      </div>
+      <div class="dg-list">
+        ${dg("Quality", p.quality, p.quality + "/100", p.quality >= 70 ? "good" : p.quality < 50 ? "bad" : "")}
+        ${dg("Buzz net", (p.net + 20) / 80 * 100, (p.net >= 0 ? "+" : "\u2212") + Math.abs(p.net), p.net >= 15 ? "good" : p.net <= -5 ? "bad" : "")}
+        ${dg("Opening wk", p.openingRel * 100, M(p.opening) + " /wk", p.openingRel >= 0.6 ? "good" : p.openingRel < 0.3 ? "bad" : "")}
+        ${run}
+        ${dg("Cash at wrap", p.cashAfter / Math.max(0.1, p.fundable) * 100, sM(p.cashAfter), p.cashAfter < 0 ? "bad" : "")}
+        ${dg("Complete", p.progress, p.progress + "%", p.progress >= 100 ? "good" : "")}
+      </div>
+      <p class="dg-fine">A projection, not a promise — the critics, the internet, and the weather still get the last word.</p>`;
+  }
+
   function renderProduction() {
     const f = GAME.film;
     if (!f) return;
@@ -436,6 +538,7 @@ const UI = (() => {
     renderProdHead();
     renderAds();
     renderPhases();
+    renderDashboard();
     renderMessages();
     updateProdControls();
     renderHint("production");
@@ -892,16 +995,16 @@ const UI = (() => {
     openModal("HOW TO PLAY", `
       <p style="line-height:1.7">You run a small Hollywood production company. Each film walks five steps:</p>
       <div style="line-height:1.8;font-size:13px">
-        1. <b>Development</b> — pick one of three scripts; each rewrite week costs $0.3M for +7 script quality.<br>
+        1. <b>Development</b> — pick one of three scripts; each rewrite week costs $0.3M for +7 script quality. The trade paper shows which genres are hot this week — a hot genre opens bigger.<br>
         2. <b>Budget</b> — aim near the ideal. Under hurts quality; way over wastes money.<br>
         3. <b>Casting</b> — stars bring draw and social reach, but big fees.<br>
-        4. <b>Production</b> — pass weeks, buy ads, and manage <b>two buzz meters</b>: positive (green) and negative (red). Both decay ~3%/week, drift on their own, and events (gaffes, scandals, heartwarming moments) can move either or both. What the opening weekend sees is the difference.<br>
+        4. <b>Production</b> — pass weeks, buy ads, and manage <b>two buzz meters</b>: positive (green) and negative (red). Both decay ~3%/week, drift on their own, and events (gaffes, scandals, heartwarming moments) can move either or both. What the opening weekend sees is the difference. The <b>PROJECTION</b> sidebar keeps a running read on the picture's odds — a forecast, not a promise.<br>
         5. <b>Release</b> — four critics weigh in with advance reviews (their consensus shifts buzz), then track your film on the Top 10 until it drops out.
         6. <b>Headquarters</b> — between films: the dashboard (bank trust, board approval, prestige, rep curve), the trophy room, and the industry trends that shape your next opening weekend. If the board's approval hits zero, it votes.
       </div>
       <p style="margin-top:14px">📎 <b>The boardroom</b> — your studio's executives (the CFO, the casting director, the PR chief, the distributor, the head of development, and the studio head) pass you a note whenever the situation changes. The advice is real; the delivery is not always kind. Toggle them from the top bar.</p>
       <p style="margin-top:14px">💡 <b>Test screening</b> (60%+ complete, $0.5M) scores the film; under 55 you can reshoot for $1.5M (+8 quality).</p>
-      <p>💰 You start with $15M plus a credit line of ${M(limit)}M — the bank lends on *trust*, so hit films grow the line and bombs shrink it. Go 20% past the limit and the bank takes the lot.</p>
+      <p>💰 You start with $15M plus a credit line of ${M(limit)}M — the bank lends on *trust*, so hit films grow the line and bombs shrink it. Go past the limit and the bank takes the lot. There is no grace.</p>
       <p>🎯 Quality = 55% script + 45% cast, scaled by how well you budgeted. Dramas and documentaries have legs; action opens hot and fades fast.</p>`);
   }
 

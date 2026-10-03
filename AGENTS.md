@@ -13,11 +13,11 @@ research background and player-facing docs.
 |---|---|
 | `index.html` | All 10 screens (title, studio, script, budget, casting, production, **HQ**, box office, results, game over) + one shared modal |
 | `styles.css` | Cinematic theme (marquee gold/velvet red, film grain, responsive) |
-| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines + advisory execs & hint templates** (`ADVISORS`/`HINTS`/`pickHint`)) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
+| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines + advisory execs & hint templates** (`ADVISORS`/`HINTS`/`pickHint`), **trade-paper headlines** (`trendHeadlines`), **casting pools** (`makeActorOfTier`/`makeActorPool`/`makeCastingRound`/`makeDirectorPool`)) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
 | `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
-| `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API |
-| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed, **advisory note bars** (`.hint-slot` per screen + `renderHint` + top-bar 📎 toggle) |
+| `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API (incl. `G.trendPaper()` — the trade paper, transient `S.paper`, and `G.projection()` — the dashboard bundle) |
+| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed, **advisory note bars** (`.hint-slot` per screen + `renderHint` + top-bar 📎 toggle), **trade paper** (`renderTradePaper` on the script screen), **production dashboard** (`renderDashboard`, 4th prod-grid column), **casting sort controls** (session-only) |
 | `tools/balance-test.js` | Headless smoke + 300-film random + 200-film skilled simulations (Node VM) |
 | `tools/career-test.js` | 100 careers × 8 films with a strong strategy |
 | `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening/reviews modals, terminate + bankruptcy + game-over branches, save/continue across a page reload. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed) |
@@ -96,19 +96,30 @@ monogram, and accent color) who pass sticky notes on every screen.
 and the boardroom: `hint(topic)`, `toggleAdvisors`, `advisorsOn`,
 `advisorsPref`.
 
-Save format: localStorage key `simcinema_save_v4` (whole state blob; bumped
+Save format: localStorage key `simcinema_save_v5` (whole state blob; bumped
 when the HQ metagame landed, then the advisors setting, then the P&L debt fix
-+ `pendingScript` — safe to bump again if the shape changes).
++ `pendingScript`, then the wider casting pool — a 3-card `castOptions` index
+would dangle against a 6-card array, so old blobs are invalidated on purpose).
+`S.paper` (the trade paper) is transient: rebuilt in `offerScripts()`, nulled
+on `load()`/`restart()`/`newStudio()`, never in the blob.
 
 ### Key game constants (balance is sensitive — re-run tools/ after changes)
 
 - Starting funds $15M; credit line `4 + bank.trust*0.2` ($M, trust starts 50);
-  bankruptcy at 120% over the limit. **Debt is a funding source, not an extra
+  bankruptcy at **100%** of the limit (no grace — tightened from 120% when the
+  wider casting pool made value plays' cash paths shallower; the help screen
+  says "there is no grace"). **Debt is a funding source, not an extra
   cost**: the P&L is `gross − totalCosts` (the borrowed dollars are already
   inside totalCosts); repayment is a cash-flow event, and the *price* of the
   line is a −9 bank-trust nudge for every film that used it (the dial that
   keeps strong play inside the balance band). Board approval 0 = fired (one
   reprieve per career; see HQ section).
+- Casting pool: 6 candidates per actor slot + 8 directors (was 3+5), built by
+  `D.makeCastingRound()`. The spread is guaranteed at the **round** level (≥1
+  Unknown + ≥1 A-List/Bankable *somewhere* in the 3 slots) plus a per-slot
+  "at least one end of the spectrum" pass — **never** a per-slot both-ends
+  guarantee: that triples the value play's cheap options, halves its fees, and
+  flattens career cash risk until strong play barely died (see Balance note).
 - Quality = `(0.55*scriptQuality + 0.45*castScore) * budgetFactor` (±event
   deltas, +8 reshoot).
 - Opening = `audience * max(0.35, 1 + 5.5*netBuzz/100) * (0.55 + 0.55*R)
@@ -126,6 +137,15 @@ when the HQ metagame landed, then the advisors setting, then the P&L debt fix
   consensus on release. Old saves with a single `buzz` are migrated on load.
 - Production: `totalWeeks = clamp(round(3 + budget/4), 4, 12)`; four phases
   with genre-dependent schedule windows (`G.phaseProfile`).
+- **Projection** (`G.projection()`, DOM-free): built from the *same*
+  `openingOf`/`decayOf`/`runTotal` math as `_hintCtx`/`release()` (referenced,
+  never duplicated). Composite `success` = `0.45*marginScore + 0.30*quality +
+  0.25*buzzScore` (margin −20%→0/+110%→100, buzz −10→0/+40→100), banded
+  hit ≥70 / viable ≥45 / rough ≥25 / cliff. Measured against 5,800 career-test
+  films: strong play reads 100% hit in the viable/hit bands, 85% in rough,
+  and never in cliff — correlated, never a promise (critics + buzz drift still
+  decide the outcome). `runTotal` counts the opening week even under $1M
+  (the game always logs week 1).
 
 ## Current Status (as of this writing)
 
@@ -171,6 +191,21 @@ when the HQ metagame landed, then the advisors setting, then the P&L debt fix
    blob). Skilled first film went from 40% hit/−$2.2M avg to ≈68–71% hit/
    +$5–6M avg; the office now names the mistake ("the value card is Otis Vale
    at $1.3M for 54") instead of sighing about weather.
+   **The trade paper, projection dashboard, and wider casting pool** (this
+   batch, in order): ① a "Variety"-style industry newspaper on the script
+   screen (`D.trendHeadlines` + `G.trendPaper()`, transient `S.paper` rebuilt
+   when the 3 pages re-roll) surfaces the genre trend `release()` already
+   applies — all 8 genres with heat bars, the 3 offered pages tagged, plus the
+   honest footnote that heat multiplies rivals' openings too; ② an always-on
+   PROJECTION sidebar on the production screen (`G.projection()`, 4th prod-grid
+   column) with a hero success composite + 6 gauges (quality, net buzz,
+   opening, run-vs-costs with break-even tick, cash at wrap, schedule);
+   ③ the casting pool widened 3→6 per actor slot and 5→8 directors
+   (`D.makeCastingRound`), with a **round-level** spread guarantee (≥1 Unknown
+   + ≥1 big name somewhere in the three slots — see the pool bullet under Key
+   game constants for why not per-slot) and session-only sort controls. Both
+   ① and ② are purely informational and DOM-free in `game.js`; ③ changed the
+   `castOptions` shape → save key bumped to `simcinema_save_v5`.
 - **Balance note**: the newest risk axes are the critic step and the HQ layer
   (bank trust, fired branch, trends), plus the **P&L debt fix** — `finishBoxOffice`
   used to compute `profit = gross − totalCosts − debt`, double-counting the
@@ -182,6 +217,22 @@ when the HQ metagame landed, then the advisors setting, then the P&L debt fix
   the fix lifts skilled play; the −9 dial holds survival in the 75–80 band) —
   within design intent (strong play wins, sloppy loses; sloppy still 0% hit).
   Re-measure after any balance change.
+- **Balance note (wider pool)**: the 6+8 casting pool let the value strategy
+  shave ~$3.3M off per film (it now finds a genuine $0.2–0.5M unknown for
+  every slot), which shallowed career cash risk and pushed survival to 95–97%
+  (out of band). Tier re-pricing and the −9→−11 trust dial both under-cut; the
+  lever that held the band was **bankruptcy at 100% of the limit** (no 20%
+  grace — and the bank fiction always said "no grace anyway"). Current strong
+  play measures ≈ 84–92% of 8-film careers survive / 93–95% hit / $125–138M
+  avg final funds (mean ≈ 87% — in the 79–88% band); sloppy random play is
+  0% hit and dies ~45% mid-career; the `--skilled` single-film bot is 74% hit
+  with ~5–7% bankruptcies (aggressive spending; a careful human reads the
+  CASH AT WRAP gauge). Re-measure after any balance change.
+- **Note (projection calibration)**: the dashboard composite was validated
+  against 5,800+ career-test films — strong play reads 100% actual hit in the
+  viable/hit bands, 85% in rough, and never in cliff. Don't tighten the
+  margin/buzz weights toward a "perfect" predictor: the critic step and buzz
+  drift must keep the last ~10% of the variance honest.
 - **Note**: `styles.css` needs `[hidden] { display: none !important; }` —
   author `display` rules (`.topbar`, `.modal-backdrop`) override the UA
   stylesheet's `[hidden]` rule, so the topbar/modal render on every screen
@@ -198,9 +249,12 @@ when the HQ metagame landed, then the advisors setting, then the P&L debt fix
    done (commit b4055dc);
    ~~Decision-grade hint redesign + P&L debt double-count fix~~ done
    (priority-tiered `HINTS`, `G._hintCtx` live numbers, `finishBoxOffice`
-   `gross − totalCosts`, −9 trust dial, save v4) — see Current Status.
+   `gross − totalCosts`, −9 trust dial, save v4) — see Current Status;
+   ~~trade paper + production projection dashboard + wider casting pool~~
+   done (see Current Status; save v5, bankruptcy 100%).
 2. Optional polish: dedupe actor quips/director names, persist box-office
-   movement baseline across reloads, mobile pass.
+   movement baseline across reloads, mobile pass (the 4-column production grid
+   with the dashboard sidebar is dense on phones).
 
 ## Enhancement Suggestions (backlog)
 
@@ -209,14 +263,16 @@ Design guardrail for everything below: keep the balance targets
 tone; run `tools/balance-test.js --smoke && tools/career-test.js &&
 tools/browser-test.js` after each build; bump the save key on shape changes.
 
-### Planned next (this batch — designed, not started)
+### ~~Planned next (this batch)~~ — DONE (see Current Status; the design
+briefs below are the as-built record)
 
-Three features agreed with the player. Recommended build order is by risk:
-**trade-paper (lowest) → dashboard (medium) → wider casting (highest,
-balance + save-bump)**. All three are designed against the *existing*
-machinery so they stay honest and cheap to verify.
+Three features agreed with the player, built in risk order **trade-paper →
+dashboard → wider casting**. As-built deltas vs. the briefs: the spread
+guarantee landed at the *round* level (not per slot — the brief's per-slot
+version broke the balance band), the dashboard gained a 6th cash gauge, the
+bankruptcy rule tightened 120%→100% as the balance lever, and save is v5.
 
-1. **Trade-paper genre trends on the script screen** (lowest risk).
+1. ~~**Trade-paper genre trends on the script screen**~~ (lowest risk) — done.
    The script screen offers 3 pages but the genre trend (`S.trends`, 0.75–1.3,
    which already multiplies the opening) is invisible there — the player picks
    blind. Add a "Variety"-style **industry newspaper** panel: a dated masthead,
@@ -234,7 +290,7 @@ machinery so they stay honest and cheap to verify.
    - Show a heat **bar** + hot/cool/flat label rather than the raw `1.13`
      number (reads like a trade paper; bar length encodes the value).
 
-2. **Production mini-dashboard — readiness & projected-success gauges** (medium).
+2. ~~**Production mini-dashboard — readiness & projected-success gauges**~~ (medium) — done.
    An **always-on right-hand sidebar** of color-coded gauges (SimCity R/C/I
    style) giving a glanceable read of the film in the making: one hero
    **"success likelihood"** composite + six metric bars — projected quality,
@@ -259,7 +315,7 @@ machinery so they stay honest and cheap to verify.
      `styles.css`. No save-blob shape change.
    - 7 gauges is dense on mobile — pair with the existing "mobile pass" item.
 
-3. **Wider casting pool** (highest risk — balance + save bump).
+3. ~~**Wider casting pool**~~ (highest risk — balance + save bump) — done.
    Casting offers 3 candidates per actor slot (lead/co-lead/sup) + 5 directors,
    drawn from a 5-tier table (Unknown $0.1–0.5M → A-List $4.5–8M, ~½ parody
    personas). The 1999 original presented a **wide pool** across the full fee

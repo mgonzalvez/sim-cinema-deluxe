@@ -63,19 +63,26 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
 
 1. **Name your studio** — you start with $15M and a credit line.
 2. **Development** — pick one of three scripts (genre, quality, ideal budget);
-   pay for rewrite weeks if you like.
+   pay for rewrite weeks if you like. The **trade paper** on the screen prints
+   the industry's live genre-heat table — hot genres open bigger, and the paper
+   tags which of your three pages are riding one.
 3. **Budget** — set the production budget. Under the ideal and the film suffers;
    way over and the bank frowns. The budget also sets how many weeks production
    takes.
-4. **Casting & crew** — lead, co-lead, supporting, and director. Big names bring
-   audience draw and social reach; unknowns are cheap and risky.
+4. **Casting & crew** — a wide pool: six candidates per actor slot, eight
+   directors, with a guaranteed cheap unknown and a guaranteed big name in the
+   round. Big names bring audience draw and social reach; unknowns are cheap
+   and risky. Sort the lists by fee, draw, or name.
 5. **Production (the weekly loop)** — each week: manage your **two buzz
    meters** (positive green, negative red — both fade, both drift, and the
    internet does things on its own), buy advertising (PR Cleanup deflates the
    red one), pass the week, and resolve random on-set events (stunt rigs, a
    burrito, tabloids, a red-carpet gaffe, a weekend photo, catering memos, the
    method, a 4,000-page fan wiki…). The message feed tells the story of your
-   production — the big gold ★ entries are the moments that mattered.
+   production — the big gold ★ entries are the moments that mattered. The
+   **projection sidebar** keeps a running read on the picture: a projected
+   success score plus gauges for quality, buzz, opening, run-vs-costs, cash,
+   and completion.
 6. **Test screen** (60%+ complete, $0.5M) — the audience scores the film;
    a bad score offers a $1.5M reshoot.
 7. **Release** (100% complete) — four critics publish advance reviews first;
@@ -100,8 +107,8 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
 
 - **Credit line, not soft money**: the bank's trust (not your reputation) sets
   your credit line — hit films earn it, bombs cost it; debt is repaid from box
-  office at the end, and going 20% past the limit ends the game. This is how a
-  small studio makes a big picture.
+  office at the end, and going past the limit ends the game. The bank lends on
+  trust and there is no grace, which is how a small studio makes a big picture.
 - **Genres have personalities**: Action opens hot but decays fast; Dramas and
   Documentaries open small but have "legs"; Animation has family audiences.
 - **Everything is procedural**: titles, cast, taglines, rivals, critics, even

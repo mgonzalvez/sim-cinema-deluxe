@@ -517,6 +517,53 @@ const DATA = (() => {
     return h;
   }
 
+  // ---------- trade-paper headlines (the development screen's industry paper) ----------
+  // The paper prints what the sim already knows: the live genre-heat table.
+  const TREND_HEADLINES = {
+    hotHot: [
+      (g) => `${g} is the new word in town. Everyone has a ${g.toLowerCase()} idea, and the money is following.`,
+      (g) => `${g} opens are stacking up faster than theaters can screen them. Release dates are the new real estate.`,
+      (g) => `Trade poll: a majority of producers would pitch a ${g.toLowerCase()} right now. A few would pitch two.`
+    ],
+    hotMild: [
+      (g) => `${g} is quietly having a moment, which in this town is a headline.`,
+      (g) => `A ${g.toLowerCase()} just beat its opening projections. The studios are pretending they saw it coming.`
+    ],
+    hotFlat: [
+      (g) => `Even ${g} is struggling. The town is having a weird week.`,
+      (g) => `No genre is really hot, which is to say: ${g} is the best of a bad week. Take what you can get.`
+    ],
+    cold: [
+      (g) => `Trade memo: ${g} films are opening into empty auditoriums.`,
+      (g) => `${g} has gone quiet. The trades are not writing about it, and that is the story.`,
+      (g) => `A ${g.toLowerCase()} was cut to one screen after three days. The rest of the slate is being watched.`,
+      (g) => `${g} is finding a weird second life on streaming. The studios are pretending not to care.`
+    ],
+    coldMild: [
+      (g) => `${g} openings are soft. Not fatal, but the phone calls are getting shorter.`,
+      (g) => `Nobody is killing ${g}, exactly. In this town, that is how you know something is off.`
+    ],
+    flavor: [
+      () => `${pick(RIVAL_STUDIOS)} greenlights a ${pick(Object.keys(GENRES))} event picture. The word is: big. The other word is: maybe.`,
+      () => pick(HEADLINE_GLOSS)(pick(PARODY_STARS).name),
+      () => `Box office weather: warm, unsettled, with a 40% chance of a surprise hit before the weekend.`,
+      () => `The theater chains add a screen here, remove one there. Someone is nervous. Possibly all of them.`
+    ]
+  };
+  function trendHeadlines(trends) {
+    const gs = Object.keys(GENRES);
+    const ranked = gs.slice().sort((a, b) => (trends[b] || 1) - (trends[a] || 1));
+    const hot = ranked[0], cold = ranked[ranked.length - 1];
+    const h = [];
+    const hotH = trends[hot] || 1, coldH = trends[cold] || 1;
+    h.push(hotH >= 1.1 ? pick(TREND_HEADLINES.hotHot)(hot)
+      : hotH > 0.95 ? pick(TREND_HEADLINES.hotMild)(hot)
+      : pick(TREND_HEADLINES.hotFlat)(hot));
+    h.push(coldH <= 0.9 ? pick(TREND_HEADLINES.cold)(cold) : pick(TREND_HEADLINES.coldMild)(cold));
+    h.push(pick(TREND_HEADLINES.flavor)());
+    return h;
+  }
+
   // ---------- the boardroom: advisory execs + their notes ----------
   const ADVISORS = [
     { id: "gerald",    name: "Gerald Fitch",       title: "Studio Head",             mono: "GF", color: "#ff7a6e" },
@@ -734,7 +781,7 @@ const DATA = (() => {
     const h = pick(pool);
     return { exec: ADVISORS.find((a) => a.id === h.exec), text: h.t(ctx), tid: h.id };
   }
-  return { pick, rand, randInt, clamp, shuffle, money, cap, pct, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, AWARDS, RAZZIES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS, makeHeadlines, ADVISORS, pickHint };
+  return { pick, rand, randInt, clamp, shuffle, money, cap, pct, GENRES, adjectives, nouns, extraWords, loglines, taglineBank, OUTSIDE_BUZZ, CRITICS, REVIEW_QUOTES, AWARDS, RAZZIES, ADS, EVENTS, SCREEN_QUOTES, RIVAL_STUDIOS, RIVAL_GENRE_NOUNS, FIRST_NAMES, LAST_NAMES, DIRECTOR_FIRST, DIRECTOR_STYLE, PARODY_STARS, PARODY_DIRECTORS, makeHeadlines, trendHeadlines, ADVISORS, pickHint };
 })();
 
 // ---------- procedural generators ----------
@@ -810,6 +857,12 @@ const DATA = (() => {
     else if (roleIndex === 1) tierIdx = roll < 0.15 ? 0 : roll < 0.5 ? 1 : roll < 0.8 ? 2 : 3;
     else tierIdx = roll < 0.05 ? 1 : roll < 0.35 ? 2 : roll < 0.7 ? 3 : 4;
     const t = tiers[tierIdx];
+    return D.makeActorOfTier(roleIndex, t.tier);
+  };
+
+  // a hand-picked candidate from one tier — used by the casting spread pass
+  D.makeActorOfTier = (roleIndex, tierName) => {
+    const t = TIER_TABLE.find(x => x.tier === tierName);
     return {
       name: D.makePerson(),
       tier: t.tier,
@@ -820,8 +873,50 @@ const DATA = (() => {
     };
   };
 
-  D.makeDirector = () => {
-    if (Math.random() < 0.55) {
+  // wider casting pool: 6 actors / slot. The spread is guaranteed at the
+  // ROUND level (see makeCastingRound), never per slot: the 1999 original's
+  // wide pool offered cheap talent *often*, not *always*, and a per-slot
+  // cheap-Unknown guarantee triples the value play's cheap options, halves its
+  // fees, and flattens the career's cash risk until strong play barely dies.
+  // Per slot: if a slot shows neither end of the spectrum, one is placed
+  // (randomly which, worst-value card replaced) so every slot is interesting.
+  D.makeActorPool = (roleIndex, n = 6) => {
+    const pool = Array.from({ length: n }, () => D.makeActor(roleIndex));
+    const isBig = (t) => t.tier === "A-List Star" || t.tier === "Bankable Star";
+    const isLow = (t) => t.tier === "Unknown";
+    const ratio = (t) => t.draw / Math.max(0.2, t.cost);
+    if (!pool.some(isLow) && !pool.some(isBig)) {
+      let idx = pool.map((_, i) => i).sort((a, b) => ratio(pool[a]) - ratio(pool[b]))[0];
+      pool[idx] = D.makeActorOfTier(roleIndex, Math.random() < 0.5 ? "Unknown" : (Math.random() < 0.5 ? "A-List Star" : "Bankable Star"));
+    }
+    return pool;
+  };
+
+  // the round: 3 actor slots + the director slate. A round always ends up with
+  // at least one Unknown and at least one big name SOMEWHERE, so the
+  // value-vs-name tradeoff is real — but which slot holds the cheap option is
+  // left to the random draw, which keeps good play's cash path genuinely risky.
+  D.makeCastingRound = () => {
+    const isBig = (t) => t.tier === "A-List Star" || t.tier === "Bankable Star";
+    const isLow = (t) => t.tier === "Unknown";
+    const ratio = (t) => t.draw / Math.max(0.2, t.cost);
+    const roles = [0, 1, 2];
+    const pools = roles.map(r => D.makeActorPool(r, 6));
+    const topUp = (tierName, present) => {
+      if (pools.some(p => p.some(present))) return;
+      const r = roles[Math.floor(Math.random() * roles.length)];
+      const pool = pools[r];
+      let idx = pool.map((_, i) => i).filter(i => !isLow(pool[i]) || tierName === "Unknown").sort((a, b) => ratio(pool[a]) - ratio(pool[b]))[0];
+      if (idx == null) idx = pool.map((_, i) => i).sort((a, b) => pool[a].cost - pool[b].cost)[0];
+      pool[idx] = D.makeActorOfTier(r, tierName);
+    };
+    topUp("Unknown", isLow);
+    topUp(Math.random() < 0.5 ? "A-List Star" : "Bankable Star", isBig);
+    return { lead: pools[0], co: pools[1], sup: pools[2], dir: D.makeDirectorPool(8) };
+  };
+
+  D.makeDirector = (kind = null) => {
+    if (!kind && Math.random() < 0.55) {
       const free = D.PARODY_DIRECTORS.filter(p => !usedParodyDirs.has(p.name));
       if (free.length) {
         const p = D.pick(free);
@@ -829,12 +924,41 @@ const DATA = (() => {
         return { name: p.name, style: p.style, score: p.score, cost: p.cost };
       }
     }
+    if (kind === "cheap") return {
+      name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
+      style: D.pick(D.DIRECTOR_STYLE),
+      score: D.randInt(30, 65),
+      cost: Math.round((1 + D.rand(0, 1)) * 10) / 10
+    };
+    if (kind === "top") return {
+      name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
+      style: D.pick(D.DIRECTOR_STYLE),
+      score: D.randInt(85, 95),
+      cost: Math.round((3 + D.rand(0, 2)) * 10) / 10
+    };
     return {
       name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
       style: D.pick(D.DIRECTOR_STYLE),
       score: D.randInt(30, 92),
       cost: Math.round((1 + D.rand(0, 4)) * 10) / 10
     };
+  };
+
+  // same spread etiquette as the actor pool: guarantee a cheap + a top, by
+  // replacing the worst score/fee card (never a guaranteed one)
+  D.makeDirectorPool = (n = 8) => {
+    const pool = Array.from({ length: n }, () => D.makeDirector());
+    const isCheap = (d) => d.cost <= 2;
+    const isTop = (d) => d.score >= 85;
+    const ratio = (d) => d.score / Math.max(0.5, d.cost);
+    const replace = (kind, ok) => {
+      let idx = pool.map((_, i) => i).filter(ok).sort((a, b) => ratio(pool[a]) - ratio(pool[b]))[0];
+      if (idx == null) idx = pool.map((_, i) => i).sort((a, b) => pool[a].cost - pool[b].cost)[0];
+      pool[idx] = D.makeDirector(kind);
+    };
+    if (!pool.some(isCheap)) replace("cheap", () => true);
+    if (!pool.some(isTop)) replace("top", (i) => !isCheap(pool[i]));
+    return pool;
   };
 
   D.makeScriptOptions = (reputation) => {

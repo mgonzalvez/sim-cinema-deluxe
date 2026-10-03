@@ -7,7 +7,7 @@
 
 const GAME = (() => {
   const D = DATA;
-  const SAVE_KEY = "simcinema_save_v4"; // bumped: P&L no longer double-counts credit-line debt
+  const SAVE_KEY = "simcinema_save_v5"; // bumped: casting pool widened (6/6/6/8) — old card indices would dangle
   const LEGACY_KEY = "simcinema_legacy_v1";
   const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -37,7 +37,8 @@ const GAME = (() => {
     awards: [],               // trophy room: { title, poster, name, razzie, date, y }
     repHistory: [],           // [{ rep, date }] for the dashboard curve
     news: [],                 // [{ date, text }] industry headlines for the HQ
-    advisorsOn: true          // the boardroom: toggle-able advisory notes
+    advisorsOn: true,         // the boardroom: toggle-able advisory notes
+    paper: null               // transient: the trade paper on the script screen (rebuilt, not saved)
   };
   function defaultTrends() { const t = {}; for (const g of Object.keys(D.GENRES)) t[g] = 1.0; return t; }
   const _defaultTrends = defaultTrends;
@@ -98,6 +99,7 @@ const GAME = (() => {
     S.news = [];
     S.gameOverType = "bank";
     S.advisorsOn = advisorsPref();
+    S.paper = null;
     S.state = "script";
     log(`The ${S.studio.name} lot opens with $15M and a dream.`, "gold");
     offerScripts();
@@ -142,6 +144,7 @@ const GAME = (() => {
       }
       S.pendingEvent = null;
       S.eventPool = [];
+      S.paper = null; // the paper is rebuilt for whatever week the save landed in
       return true;
     } catch (e) { return false; }
   }
@@ -184,10 +187,32 @@ const GAME = (() => {
     S.scriptOptions = D.makeScriptOptions(S.studio.reputation);
     S.selectedScript = null;
     S.rewrites = 1;
+    // a fresh slate of scripts is a fresh week: the trade paper prints a new edition
+    S.paper = buildTrendPaper();
     save();
   }
 
   function setRewrites(n) { S.rewrites = D.clamp(n, 0, 4); save(); }
+
+  // the industry newspaper on the development screen: dated masthead, trend
+  // headlines, and the full heat table (the same S.trends release() applies —
+  // what the paper says is what you get)
+  function buildTrendPaper() {
+    const tr = S.trends || _defaultTrends();
+    const offered = (S.scriptOptions || []).map((o) => o.genre);
+    const heat = Object.keys(D.GENRES)
+      .map((g) => ({ genre: g, heat: tr[g] != null ? tr[g] : 1, onOffer: offered.includes(g) }))
+      .sort((a, b) => b.heat - a.heat);
+    return {
+      date: `${dateStr()}, ${S.date.year}`,
+      headlines: D.trendHeadlines(tr),
+      heat
+    };
+  }
+  function trendPaper() {
+    if (!S.paper) S.paper = buildTrendPaper();
+    return S.paper;
+  }
 
   function confirmScript(index) {
     const opt = S.scriptOptions[index];
@@ -229,11 +254,15 @@ const GAME = (() => {
     // prestige is a real lever: famous studios get cheaper talent
     const disc = 1 - Math.min(0.15, S.prestige * 0.0015);
     const discount = (t) => { t.cost = Math.max(0.1, Math.round(t.cost * disc * 10) / 10); return t; };
+    // wider pool: 6 actors per slot, 8 directors; the round-level spread pass
+    // guarantees the value-vs-name tradeoff is real (see D.makeCastingRound).
+    // The round is drawn once so its guarantees apply to the whole slate.
+    const round = D.makeCastingRound();
     S.castOptions = {
-      lead: [D.makeActor(0), D.makeActor(0), D.makeActor(0)].map(discount),
-      co: [D.makeActor(1), D.makeActor(1), D.makeActor(1)].map(discount),
-      sup: [D.makeActor(2), D.makeActor(2), D.makeActor(2)].map(discount),
-      dir: [D.makeDirector(), D.makeDirector(), D.makeDirector(), D.makeDirector(), D.makeDirector()].map(discount)
+      lead: round.lead.map(discount),
+      co: round.co.map(discount),
+      sup: round.sup.map(discount),
+      dir: round.dir.map(discount)
     };
     S.castPicks = { lead: null, co: null, sup: null, dir: null };
     S.state = "casting";
@@ -242,6 +271,7 @@ const GAME = (() => {
 
   return { S, newStudio, save, load, hasSave, clearSave, offerScripts, setRewrites, confirmScript,
     setBudget, budgetFactor, projectedQuality, productionWeeks, confirmBudget, dateStr, addDays, log, spend, weeklyProdCost, creditLimit, canAfford,
+    trendPaper,
     legacy, bumpLegacy,
     _internal: { D, defaultTrends } };
 })();
@@ -668,7 +698,7 @@ const GAME = (() => {
   G.spend = function (amount) {
     _spend(amount);
     const S = G.S;
-    if (S.studio.funds < -G.creditLimit() * 1.2 && ["production", "casting", "budget", "script", "boxoffice"].includes(S.state)) {
+    if (S.studio.funds < -G.creditLimit() && ["production", "casting", "budget", "script", "boxoffice"].includes(S.state)) {
       S.state = "gameover";
       S.gameOverReason = "The credit line ran dry. The bank repossessed the lot.";
       G.log("The credit line hits its limit. The bank sends a letter, and it is not a good letter.", "bad");
@@ -725,7 +755,8 @@ const GAME = (() => {
     const runTotal = (opening, quality, genre) => {
       const d = decayOf(quality, genre);
       let t = 0, w = opening;
-      for (let i = 0; i < 14 && w >= 1; i++) { t += w; w *= d; }
+      // the game always logs the opening week, even under $1M — count it
+      for (let i = 0; i < 14; i++) { t += w; if (w < 1) break; w *= d; }
       return Math.round(t * 10) / 10;
     };
     if (topic === "script") {
@@ -895,6 +926,43 @@ const GAME = (() => {
     return h;
   };
 
+  // ---------- the production mini-dashboard: one bundle of projections ----------
+  // DOM-free, built from the SAME math as the hint engine and release() — the
+  // opening/decay/run formulas are referenced, not duplicated. The composite
+  // is a projection, not a promise: the critic step, buzz drift, and the
+  // opening-week noise still decide the real outcome.
+  G.projection = function () {
+    const S = G.S, f = S.film;
+    if (!f) return null;
+    const c = G._hintCtx("production");
+    const margin = c.projCost > 0 ? c.projTotal / c.projCost - 1 : 0;
+    // composite: expected margin dominates, quality and net buzz temper it.
+    // tuned so strong play reads ~65-80, break-even ~25-40, and F-track low.
+    const marginScore = D.clamp((margin - 0.2) / 1.3, 0, 1) * 100; // −20%→0, +110%→100
+    const buzzScore = D.clamp((c.net + 10) / 50, 0, 1) * 100;       // −10→0, +40→100
+    const success = Math.round(D.clamp(0.45 * marginScore + 0.30 * c.quality + 0.25 * buzzScore, 0, 100));
+    const band = success >= 70 ? "hit" : success >= 45 ? "viable" : success >= 25 ? "rough" : "cliff";
+    // the genre ceiling: the biggest opening this genre+heat+rep could throw
+    // (quality 100, net buzz +60) — the opening bar is relative to it
+    const g = D.GENRES[f.genre];
+    const heat = S.trends[f.genre] != null ? S.trends[f.genre] : 1;
+    const maxOpening = g.audience * heat * (1 + 5.5 * 0.6) * 1.1 * (1 + S.studio.reputation / 250);
+    const openingRel = Math.round((c.opening / Math.max(0.1, maxOpening)) * 100) / 100;
+    // cash left when the picture wraps (before the box office returns),
+    // measured against the whole fundable amount
+    const remaining = Math.round((Math.max(0, f.totalWeeks - f.week) * G.weeklyProdCost()) * 10) / 10;
+    const cashAfter = Math.round((S.studio.funds - remaining) * 10) / 10;
+    const fundable = Math.round((S.studio.funds + G.creditLimit()) * 10) / 10;
+    return {
+      success, band,
+      quality: c.quality, net: c.net, buzzPos: c.buzzPos, buzzNeg: c.buzzNeg,
+      opening: c.opening, openingRel,
+      projTotal: c.projTotal, projCost: c.projCost, margin,
+      cashAfter, fundable,
+      week: c.week, totalWeeks: c.totalWeeks, progress: c.progress
+    };
+  };
+
   // ---------- small helpers for the UI ----------
   G.taglineOptions = function () {
     const f = G.S.film;
@@ -961,6 +1029,7 @@ const GAME = (() => {
     S.news = [];
     S.gameOverType = "bank";
     S.advisorsOn = G.advisorsPref();
+    S.paper = null;
     G._hintSeen = {};
   };
 

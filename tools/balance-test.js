@@ -31,6 +31,20 @@ function dataSmoke() {
   if (r.length !== 9) throw new Error("expected 9 rivals");
   D.weekGross(r[0], 0, 1);
   if (!(r[0].last > 0)) throw new Error("bad weekGross");
+  // wider casting pools: the spread pass must always deliver one cheap + one big
+  const tr = {};
+  for (const g of Object.keys(D.GENRES)) tr[g] = 1;
+  const hl = D.trendHeadlines(tr);
+  if (hl.length !== 3 || !hl.every(h => typeof h === "string" && h.length > 5)) throw new Error("bad trendHeadlines");
+  const round = D.makeCastingRound();
+  if (round.lead.length !== 6 || round.co.length !== 6 || round.sup.length !== 6) throw new Error("actor pool sizes");
+  if (round.dir.length !== 8) throw new Error("director pool size " + round.dir.length);
+  // the round-level spread guarantee: one cheap + one big name somewhere
+  const all = [...round.lead, ...round.co, ...round.sup];
+  if (!all.some(t => t.tier === "Unknown")) throw new Error("round missing an Unknown");
+  if (!all.some(t => t.tier === "A-List Star" || t.tier === "Bankable Star")) throw new Error("round missing a star");
+  if (!round.dir.some(d => d.cost <= 2)) throw new Error("director pool missing a cheap");
+  if (!round.dir.some(d => d.score >= 85)) throw new Error("director pool missing a top");
   console.log("data smoke OK");
 }
 
@@ -46,24 +60,33 @@ function fullGame(seedLog) {
     const h = G.hint(hintTopics[G.state] || "hq");
     if (h) { hints++; hintExecs.add(h.exec.id); if (!h.exec.name || !h.text) throw new Error("bad hint shape"); }
     switch (G.state) {
-      case "script":
+      case "script": {
+        const p = G.trendPaper();
+        if (!p || p.heat.length !== 8 || !p.headlines.length || !p.date) throw new Error("bad trend paper");
+        if (!p.heat.every(h => h.heat >= 0.75 && h.heat <= 1.3)) throw new Error("trend paper heat out of range");
         G.selectScript(0, 1);
         break;
+      }
       case "budget":
         G.setBudget(Math.round(G.studio.funds > 30 ? 12 : 8));
         G.confirmBudget();
         break;
       case "casting": {
         const S = G.S;
+        if (S.castOptions.lead.length !== 6 || S.castOptions.co.length !== 6 || S.castOptions.sup.length !== 6) throw new Error("cast pool sizes");
+        if (S.castOptions.dir.length !== 8) throw new Error("director pool size");
         const cheap = (arr) => arr.reduce((a, x, i) => x.cost < arr[a].cost ? i : a, 0);
         G.confirmCasting(cheap(S.castOptions.lead), cheap(S.castOptions.co), cheap(S.castOptions.sup), cheap(S.castOptions.dir));
         break;
       }
-      case "production":
+      case "production": {
+        const pr = G.projection();
+        if (!pr || pr.success < 0 || pr.success > 100 || !(pr.band in { hit: 1, viable: 1, rough: 1, cliff: 1 })) throw new Error("bad projection");
         if (G.pendingEvent) G.randomDecider();
         else if (G.canRelease()) { if (!G.film.screened) G.testScreen(); G.release(); }
         else G.passWeek();
         break;
+      }
       case "boxoffice":
         G.nextBoWeek();
         if (G.boDone) G.finishBoxOffice();
@@ -106,11 +129,14 @@ if (process.argv.includes("--smoke")) {
           G.setBudget(Math.max(2, Math.round(G.pendingScript.estBudget * (0.6 + Math.random() * 0.8))));
           G.confirmBudget();
           break;
-        case "casting":
-          // random picks; sometimes pick the most expensive
-          const pick = () => (Math.random() < 0.3 ? 2 : Math.floor(Math.random() * 3));
-          G.confirmCasting(pick(), pick(), pick(), pick());
+        case "casting": {
+          // random picks across the wider pool; sometimes pick the most expensive card
+          const pick = (arr) => (Math.random() < 0.3
+            ? arr.reduce((b, x, i) => x.cost > arr[b].cost ? i : b, 0)
+            : Math.floor(Math.random() * arr.length));
+          G.confirmCasting(pick(G.S.castOptions.lead), pick(G.S.castOptions.co), pick(G.S.castOptions.sup), pick(G.S.castOptions.dir));
           break;
+        }
         case "production":
           if (G.pendingEvent) G.randomDecider();
           else if (G.canRelease() && Math.random() < 0.9) {
