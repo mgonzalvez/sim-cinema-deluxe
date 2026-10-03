@@ -82,7 +82,7 @@ monogram, and accent color) who pass sticky notes on every screen.
   line + `margin`. `G.hint(topic)` is the only public entry: returns
   `{ exec, text, tid }` or null (null on title/studio/gameover, or when
   advisors are off); tracks recent tids in `G._hintSeen` per topic.
-- **Toggle**: `G.toggleAdvisors()` → `S.advisorsOn` (in the v4 save blob) +
+- **Toggle**: `G.toggleAdvisors()` → `S.advisorsOn` (in the save blob) +
   `simcinema_advisors` pref key that survives careers; `GAME.advisorsOn`
   getter falls back to the pref on the title screen. UI: 📎 top-bar button.
 - **UI** (`ui.js`): one `.hint-slot[data-topic=…]` per screen (7 in
@@ -104,7 +104,8 @@ monogram, and accent color) who pass sticky notes on every screen.
 `passWeek`, `resolveEvent`, `buyAd`, `setTagline`, `testScreen`, `reshoot`,
 `critique`, `release`, `nextBoWeek`, `finishBoxOffice`, `nextFilm`, `terminateFilm`,
 `save`/`load`/`hasSave`/`clearSave`, `canAfford`, `creditLimit`,
-and the boardroom: `hint(topic)`, `toggleAdvisors`, `advisorsOn`,
+the informational bundles: `trendPaper()`, `projection()`, `castingLedger()`,
+and the boardroom: `hint(topic, extra?)`, `toggleAdvisors`, `advisorsOn`,
 `advisorsPref`.
 
 Save format: localStorage key `simcinema_save_v5` (whole state blob; bumped
@@ -156,7 +157,11 @@ on `load()`/`restart()`/`newStudio()`, never in the blob.
   films: strong play reads 100% hit in the viable/hit bands, 85% in rough,
   and never in cliff — correlated, never a promise (critics + buzz drift still
   decide the outcome). `runTotal` counts the opening week even under $1M
-  (the game always logs week 1).
+  (the game always logs week 1). The bundle also carries the **credit-line
+  status** (`lineUse`/`lineTier` 0–3, `headroom`, `committedLeft`,
+  `discretionary`, `needToCover`) that the CREDIT LINE block and the reactive
+  blow-notes read — one source of truth, all derived from `funds` +
+  `creditLimit()` + the weekly production draw.
 
 ## Current Status (as of this writing)
 

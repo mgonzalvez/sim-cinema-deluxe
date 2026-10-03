@@ -72,7 +72,10 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
 4. **Casting & crew** — a wide pool: six candidates per actor slot, eight
    directors, with a guaranteed cheap unknown and a guaranteed big name in the
    round. Big names bring audience draw and social reach; unknowns are cheap
-   and risky. Sort the lists by fee, draw, or name.
+   and risky. Sort the lists by fee, draw, or name. The **ledger** panel shows
+   where the deal leaves you: cash after the fees, cash after the picture
+   draws its budget, how much line is left, and the quality/social the bench
+   buys — so you can push the envelope or play it safe on purpose.
 5. **Production (the weekly loop)** — each week: manage your **two buzz
    meters** (positive green, negative red — both fade, both drift, and the
    internet does things on its own), buy advertising (PR Cleanup deflates the
@@ -82,7 +85,12 @@ node tools/browser-test.js` stops at that screen and writes a PNG.
    production — the big gold ★ entries are the moments that mattered. The
    **projection sidebar** keeps a running read on the picture: a projected
    success score plus gauges for quality, buzz, opening, run-vs-costs, cash,
-   and completion.
+   and completion. The **credit-line** block shows how deep in the red you are
+   against the bankruptcy line, how much you can still spend and still fund
+   the wrap, and — if you're in the red — what the film must gross to pay it
+   back. Spend buttons show the red consequence next to the green buzz, and
+   past 70% of the line the office will make you confirm a buy a second time.
+   The bet is always yours; you just get to *see* the bill.
 6. **Test screen** (60%+ complete, $0.5M) — the audience scores the film;
    a bad score offers a $1.5M reshoot.
 7. **Release** (100% complete) — four critics publish advance reviews first;
