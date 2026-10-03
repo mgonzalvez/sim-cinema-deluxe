@@ -245,6 +245,29 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 .cast-summary b { color: var(--text); }
 .cast-summary .cs-row { display: flex; justify-content: space-between; padding: 3px 0; gap: 12px; }
 
+/* the casting ledger: 5th column of the casting grid (mirrors the production dashboard) */
+.casting-grid { grid-template-columns: 1fr 1fr 1fr 1fr 0.82fr; }
+.cast-ledger-slot { align-self: start; }
+.cast-ledger-slot h3 { display: flex; align-items: baseline; gap: 8px; }
+.cast-ledger-slot .lt-sub { font-family: var(--font-body); font-size: 10px; letter-spacing: 1px; color: var(--muted); }
+.lt-hero { border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); text-align: center; padding: 8px 8px 10px; margin-bottom: 10px; }
+.lt-hero .lt-hero-k { font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); }
+.lt-hero .lt-hero-v { font-family: var(--font-display); font-size: 30px; line-height: 1.05; margin: 2px 0; }
+.lt-hero .lt-hero-word { font-size: 9.5px; letter-spacing: 1.6px; text-transform: uppercase; font-weight: 700; color: var(--green); }
+.lt-hero.hot { border-color: rgba(226, 118, 61, 0.5); }
+.lt-hero.hot .lt-hero-v, .lt-hero.hot .lt-hero-word { color: #e2763d; }
+.lt-hero.red { border-color: rgba(226, 72, 61, 0.6); }
+.lt-hero.red .lt-hero-v, .lt-hero.red .lt-hero-word { color: var(--red); }
+/* the line bar: account position across [−span, +span]; the hard left edge is the bankruptcy line */
+.linebar { position: relative; height: 10px; background: var(--bg2); border: 1px solid var(--line-soft); border-radius: 5px; margin: 4px 0 10px; overflow: hidden; }
+.linebar .lb-fill { position: absolute; top: 1px; bottom: 1px; background: var(--green); opacity: 0.75; border-radius: 3px; }
+.linebar[data-tier="1"] .lb-fill { background: #e0a82d; }
+.linebar[data-tier="2"] .lb-fill { background: #e2763d; }
+.linebar[data-tier="3"] .lb-fill { background: var(--red); }
+.linebar .lb-tick { position: absolute; top: -1px; bottom: -1px; width: 2px; }
+.linebar .lb-zero { background: var(--text); opacity: 0.5; }
+.linebar .lb-hard { background: var(--red); opacity: 0.9; }
+
 /* ============ PRODUCTION ============ */
 .prod-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
 .prod-film { display: flex; gap: 14px; align-items: center; min-width: 0; }
@@ -484,6 +507,8 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 900px) {
+  .casting-grid { grid-template-columns: 1fr 1fr; }
+  .casting-grid .cast-ledger-slot { grid-column: 1 / -1; order: -1; }
   .prod-grid { grid-template-columns: 1fr 1fr; }
   .prod-grid .messages-panel { grid-column: 1 / -1; }
   .bo-grid { grid-template-columns: 1fr; }
@@ -589,6 +614,27 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
 .dg-bar-wrap { position: relative; }
 .dg-tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); opacity: 0.65; }
 .dg-fine { font-size: 10.5px; color: var(--muted); font-style: italic; margin: 10px 0 0; line-height: 1.4; }
+/* the credit-line block: where the account stands vs. the bankruptcy line */
+.dg-line { border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); padding: 8px 10px 10px; margin-bottom: 12px; }
+.dg-line .dg-top { margin-bottom: 5px; }
+.dg-line .dg-top b { letter-spacing: 1.4px; text-transform: uppercase; font-size: 10px; }
+.dg-line[data-tier="1"] .dg-top b { color: #e0a82d; }
+.dg-line[data-tier="2"] .dg-top b { color: #e2763d; }
+.dg-line[data-tier="3"] .dg-top b { color: var(--red); animation: linepulse 1.1s ease-in-out infinite; }
+.dg-line .linebar { margin: 6px 0 8px; }
+.dg-line-nums { display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; color: var(--muted); }
+.dg-line-nums b { color: var(--text); }
+.dg-gamble { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-soft); font-size: 11px; color: var(--muted); line-height: 1.45; }
+.dg-gamble b { color: var(--gold-soft); }
+@keyframes linepulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+/* spend-button line tags: the red consequence, next to the green one */
+.line-tag { font-style: normal; letter-spacing: 0.3px; }
+.line-tag.lt-1 { color: #e0a82d; }
+.line-tag.lt-2 { color: #e2763d; }
+.line-tag.lt-3 { color: var(--red); }
+.ad-item small .line-tag, .ec-title .line-tag { margin-left: 4px; }
+/* the second-tap arm: the button objects until the player commits */
+button.armed { border-color: var(--red) !important; color: var(--red) !important; background: rgba(226, 72, 61, 0.12) !important; animation: linepulse 0.8s ease-in-out infinite; }
 
 /* casting sort controls */
 .cast-sort { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
@@ -604,6 +650,7 @@ input[type="range"] { width: 100%; accent-color: var(--gold); cursor: pointer; }
   .hb-avatar { width: 34px; height: 34px; font-size: 14px; }
   .hb-quote { font-size: 12.5px; }
   .hb-pin { display: none; }
+  .casting-grid { grid-template-columns: 1fr; }
   .prod-grid { grid-template-columns: 1fr; }
   .prod-grid .dash-panel { order: -1; }
   .screen-title { font-size: 27px; }

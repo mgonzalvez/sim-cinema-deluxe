@@ -838,7 +838,13 @@ const GAME = (() => {
         bestDir: dirF ? dirF.best : null, cheapDir: dirF ? dirF.cheap : null,
         afterFees: Math.round((st.funds + G.creditLimit() - G.castTotalCost()) * 10) / 10,
         projQ: Math.round(D.clamp((0.55 * qScript + 0.45 * castScore) * bf, 5, 100)),
-        valueProjQ: Math.round(D.clamp((0.55 * qScript + 0.45 * valueCastScore) * bf, 5, 100))
+        valueProjQ: Math.round(D.clamp((0.55 * qScript + 0.45 * valueCastScore) * bf, 5, 100)),
+        // the envelope: what the account looks like AFTER the fees and after
+        // the production budget (the whole S.budget) draws from the same
+        // account — the number the ledger panel and the office quote.
+        afterAll: Math.round((st.funds - G.castTotalCost() - S.budget) * 10) / 10,
+        budget: S.budget,
+        posture: (a) => (a >= 0 ? "safe" : a < -G.creditLimit() ? "red" : (-a / G.creditLimit()) >= 0.35 ? "stretched" : "steady")
       });
     } else if (topic === "production" && f) {
       const net = G.netBuzz();
@@ -858,7 +864,15 @@ const GAME = (() => {
         projTotal: runTotal(opening, f.quality, f.genre),
         projCost,
         decay: Math.round(decayOf(f.quality, f.genre) * 1000) / 10,
-        socialGain: Math.round(9 * (1 + f.social / 200) * 10) / 10
+        socialGain: Math.round(9 * (1 + f.social / 200) * 10) / 10,
+        // the credit line: how deep the account is, what the wrap still owes
+        // the line, and how much discretionary spending the picture can absorb.
+        lineUse: st.funds < 0 ? D.clamp(-st.funds / c.limit, 0, 1) : 0,
+        lineTier: st.funds >= 0 ? 0 : D.clamp(-st.funds / c.limit, 0, 1) >= 0.7 ? 3 : D.clamp(-st.funds / c.limit, 0, 1) >= 0.35 ? 2 : 1,
+        committedLeft: Math.round(G.weeklyProdCost() * Math.max(0, f.totalWeeks - f.week) * 10) / 10,
+        headroom: Math.round((c.limit + st.funds) * 10) / 10,
+        discretionary: Math.round((c.limit + st.funds - G.weeklyProdCost() * Math.max(0, f.totalWeeks - f.week)) * 10) / 10,
+        needToCover: Math.round(Math.max(0, G.weeklyProdCost() * Math.max(0, f.totalWeeks - f.week) - st.funds) * 10) / 10
       });
     } else if (topic === "boxoffice" && S.boxoffice) {
       const bo = S.boxoffice;
@@ -912,12 +926,14 @@ const GAME = (() => {
     return c;
   };
   // the one public entry point: the UI asks, an exec answers
-  G.hint = function (topic) {
+  G.hint = function (topic, extra) {
     const S = G.S;
     if (!S.studio || S.state === "title" || S.state === "studio" || S.state === "gameover") return null;
     if (!S.advisorsOn) return null;
     let c;
-    try { c = G._hintCtx(topic); } catch (e) { return null; }
+    // extra: the UI patches in reactive facts (e.g. the spend just made) so a
+    // reactive template can quote the exact button that was pressed
+    try { c = G._hintCtx(topic); if (extra) Object.assign(c, extra); } catch (e) { return null; }
     const seen = G._hintSeen[topic] = G._hintSeen[topic] || [];
     const h = D.pickHint(topic, c, seen.slice(-3));
     if (!h) return null;
@@ -959,7 +975,48 @@ const GAME = (() => {
       opening: c.opening, openingRel,
       projTotal: c.projTotal, projCost: c.projCost, margin,
       cashAfter, fundable,
-      week: c.week, totalWeeks: c.totalWeeks, progress: c.progress
+      week: c.week, totalWeeks: c.totalWeeks, progress: c.progress,
+      // the credit line: the CREDIT LINE block on the dashboard + the office
+      // blow-notes read these (same numbers, one source of truth)
+      lineUse: c.lineUse, lineTier: c.lineTier,
+      headroom: c.headroom, committedLeft: c.committedLeft,
+      discretionary: c.discretionary, needToCover: c.needToCover,
+      funds: c.funds, limit: c.limit
+    };
+  };
+
+  // ---------- the casting ledger: one DOM-free bundle for the panel ----------
+  // Built from the same hint ctx the office reads (fees, afterFees, projQ,
+  // valueProjQ) plus the envelope math: the production draw is exactly
+  // S.budget (weeklyProdCost = budget/weeks), so CASH AFTER CASTING is a
+  // precise number, not a guess.
+  G.castingLedger = function () {
+    const S = G.S;
+    if (S.state !== "casting" || !S.castOptions) return null;
+    const c = G._hintCtx("casting");
+    const o = S.castOptions, p = S.castPicks;
+    const get = (slot) => (p[slot] != null ? o[slot][p[slot]] : null);
+    const lead = get("lead"), co = get("co"), sup = get("sup");
+    // same /3 average confirmCasting will use (uncast slots count as 0)
+    const social = Math.round(((lead ? lead.social : 0) + (co ? co.social : 0) + (sup ? sup.social : 0)) / 3);
+    const limit = G.creditLimit();
+    const redDepth = Math.max(0, -c.afterAll);
+    return {
+      funds: c.funds, limit, budget: S.budget,
+      fees: c.total,
+      // account position (not fundable power) after the fees — same convention
+      // as afterAll, so the two rows read consistently
+      afterFeesCash: Math.round((c.funds - c.total) * 10) / 10,
+      afterAll: c.afterAll,
+      redDepth, headroom: Math.round((limit - redDepth) * 10) / 10,
+      lineUse: D.clamp(redDepth / Math.max(0.01, limit), 0, 1),
+      posture: c.posture(c.afterAll),
+      allPicked: G.allCastPicked(),
+      draw: lead ? lead.draw : 0,
+      social, socialGain: Math.round(9 * (1 + social / 200) * 10) / 10,
+      adBoostPct: Math.round(social / 2),
+      projQ: c.projQ, valueProjQ: c.valueProjQ,
+      qDelta: c.projQ - c.valueProjQ
     };
   };
 

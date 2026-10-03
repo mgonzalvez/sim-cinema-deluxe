@@ -75,6 +75,9 @@ function fullGame(seedLog) {
         const S = G.S;
         if (S.castOptions.lead.length !== 6 || S.castOptions.co.length !== 6 || S.castOptions.sup.length !== 6) throw new Error("cast pool sizes");
         if (S.castOptions.dir.length !== 8) throw new Error("director pool size");
+        const L = G.castingLedger();
+        if (!L || ["safe", "steady", "stretched", "red"].indexOf(L.posture) < 0) throw new Error("bad casting ledger posture");
+        if (!isFinite(L.afterAll) || !isFinite(L.afterFeesCash) || !isFinite(L.headroom) || !isFinite(L.projQ)) throw new Error("bad casting ledger numbers");
         const cheap = (arr) => arr.reduce((a, x, i) => x.cost < arr[a].cost ? i : a, 0);
         G.confirmCasting(cheap(S.castOptions.lead), cheap(S.castOptions.co), cheap(S.castOptions.sup), cheap(S.castOptions.dir));
         break;
@@ -82,6 +85,12 @@ function fullGame(seedLog) {
       case "production": {
         const pr = G.projection();
         if (!pr || pr.success < 0 || pr.success > 100 || !(pr.band in { hit: 1, viable: 1, rough: 1, cliff: 1 })) throw new Error("bad projection");
+        if (!isFinite(pr.lineUse) || pr.lineUse < 0 || pr.lineUse > 1 || pr.lineTier < 0 || pr.lineTier > 3) throw new Error("bad line status");
+        if (!isFinite(pr.discretionary) || !isFinite(pr.needToCover)) throw new Error("bad line numbers");
+        // a spend just happened: the office must answer that spend (reactive note)
+        const rh = G.hint("production", { lastSpend: { what: "TV commercials", cost: 1.5 } });
+        if (rh && (!rh.exec.name || !rh.text)) throw new Error("bad reactive hint shape");
+        if (pr.lineTier >= 1 && !(rh && /spend/.test(rh.tid))) throw new Error("reactive note should answer the spend, got " + (rh ? rh.tid : "null"));
         if (G.pendingEvent) G.randomDecider();
         else if (G.canRelease()) { if (!G.film.screened) G.testScreen(); G.release(); }
         else G.passWeek();

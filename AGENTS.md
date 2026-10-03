@@ -13,14 +13,14 @@ research background and player-facing docs.
 |---|---|
 | `index.html` | All 10 screens (title, studio, script, budget, casting, production, **HQ**, box office, results, game over) + one shared modal |
 | `styles.css` | Cinematic theme (marquee gold/velvet red, film grain, responsive) |
-| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines + advisory execs & hint templates** (`ADVISORS`/`HINTS`/`pickHint`), **trade-paper headlines** (`trendHeadlines`), **casting pools** (`makeActorOfTier`/`makeActorPool`/`makeCastingRound`/`makeDirectorPool`)) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
+| `js/data.js` | Content pools + procedural generators (genres, names, loglines, taglines, events, ads, rivals, critics, **award/razzie pools + industry headlines + advisory execs & hint templates** (`ADVISORS`/`HINTS`/`pickHint`, incl. the credit-line reactive/ambient set), **trade-paper headlines** (`trendHeadlines`), **casting pools** (`makeActorOfTier`/`makeActorPool`/`makeCastingRound`/`makeDirectorPool`)) + box office math (`weekGross`). Humor layer: parody personas (`PARODY_STARS`/`PARODY_DIRECTORS`, ~1/2 of casting draws), tongue-in-cheek loglines/events, title templates (The X / Infinite X / sequels) |
 | `js/audio.js` | WebAudio synth SFX (no audio files); `SFX.play.*`, `SFX.toggle()` |
 | `js/poster.js` | Procedural poster art on canvas → dataURL (genre motifs, corner sticker badges, micro credit block, grain) |
-| `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API (incl. `G.trendPaper()` — the trade paper, transient `S.paper`, and `G.projection()` — the dashboard bundle) |
-| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed, **advisory note bars** (`.hint-slot` per screen + `renderHint` + top-bar 📎 toggle), **trade paper** (`renderTradePaper` on the script screen), **production dashboard** (`renderDashboard`, 4th prod-grid column), **casting sort controls** (session-only) |
+| `js/game.js` | **The simulation**: state machine + all game rules; exposes flat `GAME.*` API (incl. `G.trendPaper()` — the trade paper, transient `S.paper`; `G.projection()` — the dashboard bundle **incl. the credit-line status**; `G.castingLedger()` — the casting ledger bundle) |
+| `js/ui.js` | UI layer: screen router, all 10 screens (incl. 5-tab HQ: `RENDERERS.hq` + `HQ_RENDER`), modals (event/tagline/screening/reviews/help), autoplay timers, Top-10 table + SVG curve, save/continue, highlighted message feed, **advisory note bars** (`.hint-slot` per screen + `renderHint` + top-bar 📎 toggle), **trade paper** (`renderTradePaper` on the script screen), **production dashboard** (`renderDashboard`, 4th prod-grid column, incl. the CREDIT LINE block + reactive blow-notes + second-tap arm + button line-tags), **casting ledger** (`renderCastLedger`, 5th casting-grid column), **casting sort controls** (session-only) |
 | `tools/balance-test.js` | Headless smoke + 300-film random + 200-film skilled simulations (Node VM) |
 | `tools/career-test.js` | 100 careers × 8 films with a strong strategy |
-| `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening/reviews modals, terminate + bankruptcy + game-over branches, save/continue across a page reload. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed) |
+| `tools/browser-test.js` | Real-browser verification in headless Chrome via CDP (no deps, Node ≥ 22): full 2-film career, both autoplay speeds, event/tagline/screening/reviews modals, terminate + bankruptcy + game-over branches, save/continue across a page reload, credit-line block after the first ad buy. `PHASE=<screen>` mode stops at a screen and saves a PNG (needs Chrome installed); `PHASE=line` buys ads until the line is deep-red first |
 
 ### State machine (game.js)
 
@@ -51,19 +51,25 @@ A toggle-able bench of six parodic execs (`D.ADVISORS`: Gerald Fitch studio
 head, Dot Quince CFO, Babs Merriweather development, Percival Loam casting,
 Vivienne St. Clair PR, Mona Delacroix distribution — each with name, title,
 monogram, and accent color) who pass sticky notes on every screen.
-- **Content** (`data.js`): `HINTS` — 74 templates (67 decision-grade + 7 flavor), each
-  `{ id, topic, exec, pri, when?(ctx), t(ctx), flavor? }`; `*stars*` render as
-  `<em>` in the UI. Notes quote live numbers from ctx (fees vs. draw, projected
-  quality, opening, run totals, P&L lines), never adjectives. `pri` tiers the
-  pool: **3 = critical** (the thing that will F the picture — star-for-value,
-  silent buzz meters, red winning, cash bleed, unaffordable cast, debt the
-  film can't cover), **2 = important**, **1 = routine**. `D.pickHint(topic,
-  ctx, avoidIds)`: if any pri-3 gate is live it is served (never diluted by
-  small talk) and is **exempt from the anti-repetition rotation** — while the
-  problem exists the office keeps pointing at it; otherwise it draws the
-  weighted 85% from *informational* templates only, with pure-gossip `flavor`
-  templates as the 15% lottery / thin-week fallback. Topics: `script|budget|
-  casting|production|boxoffice|results|hq`.
+- **Content** (`data.js`): `HINTS` — 83 templates (72 decision-grade + 4
+  reactive + 7 flavor), each
+  `{ id, topic, exec, pri, when?(ctx), t(ctx), flavor?, reactive? }`; `*stars*`
+  render as `<em>` in the UI. Notes quote live numbers from ctx (fees vs. draw,
+  projected quality, opening, run totals, P&L lines, line depth), never
+  adjectives. `pri` tiers the pool: **3 = critical** (the thing that will F
+  the picture — star-for-value, silent buzz meters, red winning, cash bleed,
+  unaffordable cast, debt the film can't cover, **and the reactive line
+  blow-notes**), **2 = important**, **1 = routine**. `D.pickHint(topic, ctx,
+  avoidIds)`: if `ctx.lastSpend` is set (a reactive call from the UI after a
+  spend) the gated `reactive: true` templates are served first — the office
+  answers the button; otherwise if any pri-3 gate is live it is served (never
+  diluted by small talk) and is **exempt from the anti-repetition rotation** —
+  while the problem exists the office keeps pointing at it; otherwise it draws
+  the weighted 85% from *informational* templates only, with pure-gossip
+  `flavor` templates as the 15% lottery / thin-week fallback. Topics:
+  `script|budget|casting|production|boxoffice|results|hq`. Engine entry:
+  `G.hint(topic, extra?)` — `extra` is merged into the ctx (the UI passes
+  `{ lastSpend: { what, cost } }` after any discretionary spend).
 - **Engine** (`game.js`, DOM-free): `G._hintCtx(topic)` builds the ctx an exec
   "sees" — signed money (`sM`), funds/limit/fundable, rep, prestige, bank
   trust, board approval, hot/cold genre + heat, plus per-topic decision
@@ -80,12 +86,17 @@ monogram, and accent color) who pass sticky notes on every screen.
   `simcinema_advisors` pref key that survives careers; `GAME.advisorsOn`
   getter falls back to the pref on the title screen. UI: 📎 top-bar button.
 - **UI** (`ui.js`): one `.hint-slot[data-topic=…]` per screen (7 in
-  `index.html`); `renderHint(topic)` re-rolls a note only when a per-topic
-  "signature" changes (selected script + rewrites, budget tier, cast picks,
-  week + buzz/screen/release bands, bo week; static for results/hq);
-  a changed situation re-rolls immediately, an unchanged one at most
-  every 1.1s so autoplay doesn't machine-gun notes. Notes are purely informational — **never
-  add mechanical effects to them without rebalancing**.
+  `index.html`); `renderHint(topic, force?, extra?)` re-rolls a note only when a
+  per-topic "signature" changes (selected script + rewrites, budget tier, cast
+  picks, week + buzz/screen/release bands + **line tier**, bo week; static for
+  results/hq); a changed situation re-rolls immediately, an unchanged one at
+  most every 1.1s so autoplay doesn't machine-gun notes. After any
+  discretionary spend in production (ad / PR cleanup / test screen / reshoot /
+  paid event choice) the UI calls `renderHint("production", true,
+  { lastSpend })` so the reactive blow-note answers the button — **suppressed
+  during autoplay** (the CREDIT LINE block is the indicator there). Notes are
+  purely informational — **never add mechanical effects to them without
+  rebalancing**.
 
 `GAME.S` holds mutable state; the flat API is flattened getters
 (`GAME.state`, `GAME.film`, `GAME.studio`, …) plus actions: `newStudio`,
@@ -206,6 +217,28 @@ on `load()`/`restart()`/`newStudio()`, never in the blob.
    game constants for why not per-slot) and session-only sort controls. Both
    ① and ② are purely informational and DOM-free in `game.js`; ③ changed the
    `castOptions` shape → save key bumped to `simcinema_save_v5`.
+   **The casting ledger + "The Line"** (next batch, both purely
+   informational — no mechanical effect, no save-blob change, stays v5):
+   ① a **LEDGER** panel as the 5th casting-grid column (`G.castingLedger()`):
+   hero CASH AFTER CASTING = `funds + line − fees − S.budget` (the production
+   draw is exactly `S.budget`, so it's a precise number) with a posture chip
+   (SAFE/STEADY/STRETCHED/RED by line depth), a line-bar vs. the bankruptcy
+   edge, line-left, projected-quality delta vs. the value cast, and the
+   social lever — value casts read mostly SAFE, star-stuffed read
+   STRETCHED/RED. ② **"The Line"** — the player-reported unfairness (promo
+   buttons reward the press with green buzz while the red consequence happens
+   silently) fixed three ways, all from one source of truth: a **CREDIT LINE
+   block** on the dashboard (tiered bar, "$X until the bank moves in",
+   "buy ≈$Y & still fund the wrap", and the **gamble line** — in the red, the
+   gross needed after release vs. the projection: *the bet can pay off* / *a
+   pure gamble* — so the bet is deliberate, never accidental); **blow-notes**
+   on every discretionary spend (ad/PR/screen/reshoot/event) where Dot
+   (CFO) owns the early red and **Gerald (studio head)** takes over deep,
+   quoted from the exact button just pressed (`reactive: true` templates,
+   pri-3, `G.hint(topic, extra)`, suppressed in autoplay); and **dual-
+   consequence button tags** ("→ line 47%" beside the green buzz) with a
+   **second-tap arm** past 70% of the line — friction, never a block. HINTS
+   74→83; browser-test gained the `line` phase.
 - **Balance note**: the newest risk axes are the critic step and the HQ layer
   (bank trust, fired branch, trends), plus the **P&L debt fix** — `finishBoxOffice`
   used to compute `profit = gross − totalCosts − debt`, double-counting the
@@ -228,6 +261,11 @@ on `load()`/`restart()`/`newStudio()`, never in the blob.
   0% hit and dies ~45% mid-career; the `--skilled` single-film bot is 74% hit
   with ~5–7% bankruptcies (aggressive spending; a careful human reads the
   CASH AT WRAP gauge). Re-measure after any balance change.
+- **Balance note (ledger + The Line)**: both features are purely
+  informational — the full suite re-measured with the numbers unmoved (career
+  survival 87–94% across runs, in the 79–88% band with the same variance the
+  wider-casting batch showed; skilled/random single-film in the same ranges).
+  No mechanical effect was added; the second-tap arm is UI friction only.
 - **Note (projection calibration)**: the dashboard composite was validated
   against 5,800+ career-test films — strong play reads 100% actual hit in the
   viable/hit bands, 85% in rough, and never in cliff. Don't tighten the
@@ -251,10 +289,13 @@ on `load()`/`restart()`/`newStudio()`, never in the blob.
    (priority-tiered `HINTS`, `G._hintCtx` live numbers, `finishBoxOffice`
    `gross − totalCosts`, −9 trust dial, save v4) — see Current Status;
    ~~trade paper + production projection dashboard + wider casting pool~~
-   done (see Current Status; save v5, bankruptcy 100%).
+   done (see Current Status; save v5, bankruptcy 100%);
+   ~~casting ledger + "The Line" credit-line warning system~~ done
+   (see Current Status; purely informational, stays v5).
 2. Optional polish: dedupe actor quips/director names, persist box-office
    movement baseline across reloads, mobile pass (the 4-column production grid
-   with the dashboard sidebar is dense on phones).
+   with the dashboard sidebar — and now the 5-column casting grid — is dense
+   on phones).
 
 ## Enhancement Suggestions (backlog)
 
@@ -340,6 +381,168 @@ bankruptcy rule tightened 120%→100% as the balance lever, and save is v5.
    - The casting hints (`bestLead`/`cheapLead`/`valueLoss` in `_hintCtx`)
      get *richer* automatically (the "value card is X" note now has a real
      target) — no hint change needed.
+
+### ~~Planned next (next batch)~~ — DONE (see Current Status; the design
+briefs below are the as-built record)
+
+Two features; both are **purely informational** (zero mechanical effect, no
+save-blob shape change — stays v5; the full suite re-measured with the
+balance numbers unmoved). As-built notes: the ledger's "after the fees" row
+uses the *account* convention (not fundable power) so it reads consistently
+with the hero; the reactive templates are tagged `reactive: true` and served
+first by `pickHint` when `ctx.lastSpend` is set; the 70% arm threshold is the
+one tunable in `guardSpend`.
+
+**1. Casting ledger — cash + impact dashboard on the casting screen.**
+
+Casting is the game's most financially opaque decision: the UI shows the sum
+of the four fees, but not what that sum does to the studio's cash, the credit
+line, and the production budget that draws from the *same* account — and not
+what the cast's draw/social will do during production. The player wants to see
+the pros and cons of the tough call and consciously choose conservative vs.
+pushing the envelope. Add an always-on ledger panel (same visual language as
+the production PROJECTION panel) with two halves:
+
+**A. The cash (conservative vs. envelope):**
+- A stacked **envelope bar**: studio cash + credit line, with a committed-spend
+  marker (cast fees + the production budget) and the hard bankruptcy line.
+- Hero: **CASH AFTER CASTING** = `funds + line − fees − S.budget`. The
+  production draw is *exactly* `S.budget` (`weeklyProdCost = budget/weeks`,
+  `budget/weeks × weeks`), and dev cost is already out of `funds` — so this
+  is a precise number, not a guess. Color-coded by depth.
+- A **posture chip** derived from that number against the limit: `SAFE` (≥ 0),
+  `STEADY` (within 35% of the line), `STRETCHED` (deeper, still alive),
+  `RED` (confirming would bankrupt — `canAfford` already blocks it; the chip
+  shows *why*). Tune the 35% boundary so the `--skilled` bot mostly reads
+  STEADY and star-stuffed casts read STRETCHED/RED.
+- A headroom line: "you can still fund ≈$XM of ads & events" (`headroom =
+  afterAll` when positive).
+
+**B. What it buys (production impact of the pick):**
+- **Projected quality** bar for the current pick, with a delta vs. the value
+  cast — `projQ`/`valueProjQ` are *already* in the casting hint ctx.
+- **Social lever**: `social` = avg(lead/co/sup social) → the same
+  `9*(1+social/200)`/week ambient buzz and `(1+social/200)` ad-boost the
+  production loop uses, shown as "+X buzz/wk, ads +Y%".
+- **Draw readout** (lead + co-lead) — a name is a lever, not a badge.
+- Footer: "Production will draw $XM from the same account the fees came out
+  of." (the production dashboard takes over from there — continuity, not a
+  second source of truth.)
+
+**How it's built (reuse, never duplicate):**
+- Engine: new DOM-free `G.castingLedger()` in `game.js`, built from
+  `G._hintCtx("casting")` (already has `funds`/`limit`/`fundable`/`total`/
+  `afterFees`/`projQ`/`valueProjQ`/`leadSocial`) plus the missing pieces:
+  `afterAll`, `redDepth`, `headroom`, `social`, `socialGain`, `posture`.
+  `social`/`socialGain` must reference the same expressions the production
+  loop uses, not new constants.
+- UI: `renderCastLedger()` in `ui.js` — 4th column of the casting grid reusing
+  the `.dg-*` panel styling; re-render on every `pickTalent`/`confirmCasting`
+  (picks live in `S.castPicks`). Partial picks render partials (fees for what's
+  picked, quality with `—` for uncast slots — same convention as the total row).
+- Hints: the new ctx fields land in the casting notes for free; add 1–2 pri-2
+  templates citing `afterAll`/`posture` if the current pool never mentions the
+  *envelope*. Do not touch the pri-3 gates.
+- `index.html` (`#cast-ledger`) + `styles.css` (reuse the production dashboard
+  grid/responsive pattern; on mobile the panel folds above the grid — pair with
+  the mobile pass).
+- **No save-blob shape change** (everything is transient, like `S.paper` and
+  the dashboard) → no key bump (stays v5). **Zero mechanical effect** — the
+  guardrail holds; re-run the full suite and expect the balance numbers to
+  move ~0.
+- Tests: `balance-test` smoke — `castingLedger()` shape + posture monotonicity
+  (a star-stuffed cast lowers `afterAll` and raises `projQ`; a cast the bank
+  can't cover reads `RED` and `confirmCasting` still refuses); `browser-test`
+  — `PHASE=casting` screenshot + re-picking a card updates the panel.
+
+**2. "The Line" — credit-line warning system on the production screen.**
+
+Player-reported: promo buttons *reward* the press (green buzz climbs) while
+the red consequence (cash → line → bankruptcy at 100% of the limit) happens
+silently, so it feels *unfair* to die mid-production by spending too much —
+while the player also doesn't want to under-spend out of caution, and wants
+to be *able* to gamble: in the red, a hit film pays the line back. The fix
+is visibility + escalation, never restriction — the bet stays 100% legal,
+you just have to *see* the bill.
+
+The existing half-solutions (and their gaps): `prod-dot-cash` (pri-3,
+`funds < 3`) fires only on the weekly hint re-roll and loses a lottery against
+~14 other templates — a maybe, not a signal; the dashboard's CASH AT WRAP
+gauge is one raw number among six, no verdict, no "how much *more* can I
+spend". The design has three layers:
+
+**A. CREDIT LINE block on the production dashboard** (the always-on "where do
+I stand" read). Extend `G.projection()` (DOM-free, same object the dashboard
+already renders) with:
+- `lineUse` = `max(0, −funds) / limit` (0 when in the black); **`tier`**:
+  0 SAFE (funds ≥ 0) → 1 FIRST RED (≤ 35%) → 2 DEEP RED (≤ 70%) → 3 RED LINE
+  (≤ 100%). Colors escalate green → amber → orange → flashing red.
+- `headroom` = `limit + funds` — "**$X until the bank moves in**" (the single
+  number that answers "can I press that button").
+- `committedLeft` = `weeklyProdCost × remaining weeks` (the unavoidable
+  draw); `discretionary` = `headroom − committedLeft` — "you can still buy
+  ≈$Y **and still fund the wrap**". Can go negative → "the wrap eats the rest
+  — spend nothing, or release early" (release is always free, so that exit is
+  real, not a threat).
+- **The gamble line** (shown only in the red): `needToCover` =
+  `max(0, committedLeft − funds)` — "the film must gross ≈$X after release to
+  bring the account back above zero" — set against `projTotal` (already in
+  the bundle): the projection covers the red → "the bet can pay off"; it
+  doesn't → "this is now a pure gamble — I know how those end." The player
+deliberates with the expected value on the table; the bet is still theirs.
+- UI: a distinct block in the dashboard (above the other gauges, its own
+tier color) — position bar across `[−limit, +limit]` with a 0 tick and a hard
+"the bank moves in here" tick at −limit, the tier chip, the three numbers,
+the gamble line. Re-renders on the same trigger set as the dashboard
+(passWeek/buyAd/event/screen/reshoot) so it's live between decisions.
+
+**B. Blow-notes — the reactive, escalating office** (the "more insistent" part).
+- Any **discretionary spend** in production — all four ads, PR Cleanup, test
+  screen, reshoots — forces an immediate hint-slot re-roll (the line tier
+  joins the production hint signature, so even the *ambient* re-roll tracks
+  it; spends *within* a tier get the explicit reactive call). Autoplay
+  suppresses the reactive call (the block is the indicator there).
+- New `HINTS` templates (unique ids, `topic: "production"`, `when:` gated on
+  the new ctx fields; the reactive ones additionally gate on `c.lastSpend`
+  {what, cost} so they can quote *the button just pressed* — "that $1.5M TV
+  spot just put you $X on the line…"):  **Dot (CFO)** owns tiers 1–2 (calm →
+  urgent, quoting `headroom` + `discretionary`), **Gerald (studio head)** owns
+  tier 3 — he's the one who fires you, so his voice is the escalation; plus a
+  last-call variant near 100% ("one more buy and the line runs out — if the
+  film is a hit, this is the bravest budget sheet I've ever read; if it
+  isn't, there's no studio left to fire") and a `discretionary ≤ 0` variant.
+  Priors: tier 3/last-call = **pri-3** (the existing machinery makes pri-3
+  persist while the gate is live — that persistence *is* the insistence the
+  player asked for), tiers 1–2 = pri-2. No pri-3 gate changes to existing
+templates.
+- Event-modal paid choices get a small "→ line: $X after" tag on the choice
+  button (no second tap — the modal flow stays one-step; the tag is the
+  honesty).
+
+**C. Dual-consequence readout on the spend buttons themselves** (fixes the
+inverted feedback loop at the source). Each promo card in the ADVERTISING
+column shows *both* effects side by side under the BUY button: the existing
+buzz line ("+16.3 positive buzz") and a new line tag ("→ line: $X", colored by
+the *post-purchase* tier). Same treatment: test screen / reshoot buttons.
+**Friction** (player-confirmed: clarity, not a wall): when a purchase would
+take the *post-spend* position past **70% of the line** (one constant), the
+button requires a **second tap** — first tap arms (flash + the reactive note
+fires: "the bank frowns — buy it anyway?"), second tap confirms; clicking
+elsewhere disarms. Never a block, never applied to the unavoidable weekly
+draw — two taps to commit to oblivion, zero taps to walk away.
+
+**Files/tests:** `game.js` — `G.projection()` additions + the new
+`_hintCtx("production")` fields (referenced formulas only); `data.js` — 5–6
+new HINTS templates (conventions: unique id, pri, ctx-only references);
+`ui.js` — the block in `renderDashboard()`, reactive re-roll on spend,
+second-tap arm, button tags, event-choice tags, autoplay suppression;
+`styles.css` — tier colors (reuse the gold/red vars), arm flash, tag chips.
+`balance-test` smoke — new projection fields (ranges; buy 4 ads → `lineUse`
+monotone up, tier climbs, `discretionary` falls; a red film's
+`needToCover` vs `projTotal` renders the gamble verdict), reactive note fires
+with the right exec/tier on a spend, confirm threshold arms at 70%;
+`browser-test` — `PHASE=production`: buy until red (screenshot the block +
+arm state + tags). No save bump; no balance movement expected — verify.
 
 ### Ready to build (small, mostly cosmetic-safe)
 

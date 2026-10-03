@@ -152,8 +152,27 @@ const DRIVER = `
     const funds0 = GAME.studio.funds;
     if (adBtn.disabled) fail("tv ad locked");
     adBtn.click();
+    // deep on the line, the button arms on the first tap and buys on the second
+    if (GAME.studio.funds >= funds0 && adBtn.classList.contains("armed")) adBtn.click();
     if (GAME.studio.funds >= funds0) fail("ad did not spend");
-    ok("buy ad");
+    if (!$("#prod-dashboard .dg-line")) fail("credit line block missing");
+    ok("buy ad + credit line block");
+
+    if (PHASE === "line") {
+      // drive the line into the red (tier 2+) so the screenshot shows the escalated state
+      for (let i = 0; i < 30 && GAME.state === "production" && !GAME.pendingEvent; i++) {
+        const ads = $$("#ad-list button:not([disabled])");
+        if (!ads.length) break;
+        const b = ads[i % ads.length];
+        const f0 = GAME.studio.funds;
+        b.click();
+        if (GAME.studio.funds >= f0 && b.classList.contains("armed")) b.click();
+        if (GAME.studio.funds >= f0) break; // bank will not lend more
+        if (GAME.projection() && GAME.projection().lineTier >= 2) break;
+      }
+      await sleep(250);
+      return JSON.stringify({ pass: true, log, funds: GAME.studio.funds, films: GAME.studio ? GAME.studio.films : 0, rep: GAME.studio ? GAME.studio.reputation : 0, phase: "production" });
+    }
 
     $("#btn-tagline").click();
     if ($("#modal").hidden) fail("tagline modal");

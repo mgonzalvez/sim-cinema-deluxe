@@ -649,6 +649,8 @@ const DATA = (() => {
       t: (c) => `First picture, and the lead's fee is ${c.M(c.leadCost)} — the slot holds ${c.leadMaxDraw} draw at ${c.M(c.leadMaxCost)}, so the name is doing *something*, I'll grant you. But the board doesn't understand taste; it understands *math*. I understand the math. Pick the number, not the name.` },
     { id: "cas-gerald-proj", topic: "casting", exec: "gerald", pri: 3, when: (c) => c.total > 0 && c.projQ < c.valueProjQ - 8,
       t: (c) => `With that bench, this film projects to quality ${c.projQ}. The *value* bench in those same slots projects to ${c.valueProjQ}. You're paying more for *less* film. I've run studios that fell for the name; I have not run one that got back up.` },
+    { id: "cas-dot-envelope", topic: "casting", exec: "dot", pri: 2, when: (c) => c.afterAll < -c.limit * 0.35,
+      t: (c) => `Let's do the arithmetic. The fees clear, then the production budget draws its ${c.M(c.budget)} from that same account — the picture wraps at ${c.sM(c.afterAll)}, ${(Math.max(0, -c.afterAll) / c.limit).toFixed(0)}% of the ${c.M(c.limit)} line in use, before a single ad dollar. A hit pays it all back. A flop doesn't, and the line remembers.` },
     { id: "cas-gerald-flavor", topic: "casting", exec: "gerald", flavor: true,
       t: (c) => `Casting is the only department where the cheapest and the best are sometimes the *same* person. Find that person. I've seen them. It is almost never the one in the first slot.` },
 
@@ -683,6 +685,26 @@ const DATA = (() => {
       t: (c) => `Week ${c.week + 1} of ${c.totalWeeks}. The film isn't in theaters yet; the *weather* is. At these meters it opens ≈${c.M(c.opening)}/week and decays ${c.decay}% a week — the opening weekend is made here, not at the premiere. Work the meters, not the marquee.` },
     { id: "prod-gerald-flavor", topic: "production", exec: "gerald", flavor: true,
       t: (c) => `I hear it was eventful on the lot this week. *Good*. Pictures that make nothing happen in production make nothing happen in theaters. Nothing is what sells.` },
+
+    // the credit line: reactive blow-notes (the UI passes c.lastSpend so the
+    // note quotes the exact button just pressed; pri-3 so the office keeps
+    // pointing at the line while the player keeps spending) + ambient notes.
+    { id: "prod-dot-spend1", topic: "production", exec: "dot", pri: 3, reactive: true, when: (c) => c.lastSpend && c.lineTier === 1,
+      t: (c) => `That ${c.M(c.lastSpend.cost)} ${c.lastSpend.what} just put you in the red: ${c.sM(c.funds)}. The line is awake, and you can still buy ≈${c.discretionary >= 0 ? c.M(c.discretionary) : "nothing"} more and fund the wrap. That number goes down with every button you press. Buy with your eyes open, not your meter.` },
+    { id: "prod-dot-spend2", topic: "production", exec: "dot", pri: 3, reactive: true, when: (c) => c.lastSpend && c.lineTier === 2,
+      t: (c) => `That ${c.M(c.lastSpend.cost)} ${c.lastSpend.what} takes the line to ${Math.round(c.lineUse * 100)}% — and the picture still has to draw ${c.M(c.committedLeft)} to wrap. The free money left is ≈${c.discretionary >= 0 ? c.M(c.discretionary) : "zero"}. This is where studios die: not on the big buy, on the one that *still looked affordable*. Space the buys out, or stop.` },
+    { id: "prod-gerald-spend3", topic: "production", exec: "gerald", pri: 3, reactive: true, when: (c) => c.lastSpend && c.lineTier >= 3 && c.discretionary > 0,
+      t: (c) => `That ${c.M(c.lastSpend.cost)} ${c.lastSpend.what} put the line at ${Math.round(c.lineUse * 100)}%. At this depth the bank's letter and my letter would arrive in the same mail. The picture needs to gross ${c.M(c.needToCover)} to bring the account home; it projects ${c.M(c.projTotal)}. If it is a hit, this is the bravest budget sheet I have ever read. If it isn't, there is no studio left to fire.` },
+    { id: "prod-gerald-spend4", topic: "production", exec: "gerald", pri: 3, reactive: true, when: (c) => c.lastSpend && c.lineTier >= 3 && c.discretionary <= 0,
+      t: (c) => `One more ${c.M(c.lastSpend.cost)} ${c.lastSpend.what} and the line runs out — the bank repossesses the lot mid-credit. The wrap itself needs ${c.M(c.committedLeft)} and the line has ${c.M(Math.max(0, c.headroom))} left. Do the math like I would, and then press the button like you *mean* it.` },
+    { id: "prod-dot-line1", topic: "production", exec: "dot", pri: 2, when: (c) => !c.lastSpend && c.lineTier === 1,
+      t: (c) => `The line is awake: ${c.sM(c.funds)} in the account, ${Math.round(c.lineUse * 100)}% of it used. There is still room for decisions — ≈${c.discretionary >= 0 ? c.M(c.discretionary) : "no free money"} after the wrap. Just know what it costs to keep buying; the meter climbs and the line climbs *faster*.` },
+    { id: "prod-dot-line2", topic: "production", exec: "dot", pri: 2, when: (c) => !c.lastSpend && c.lineTier === 2,
+      t: (c) => `The line is ${Math.round(c.lineUse * 100)}% used and the picture still has ${c.M(c.committedLeft)} to draw. I do not lose studios in the last two weeks of production. I lose them in week four, when it still *looked* affordable. Space the buys out, or stop.` },
+    { id: "prod-gerald-line3", topic: "production", exec: "gerald", pri: 3, when: (c) => !c.lastSpend && c.lineTier >= 3,
+      t: (c) => `I do not own the credit line, but I do own your job. The picture must gross ${c.M(c.needToCover)} to bring the account home; the projection says ${c.M(c.projTotal)}. I have seen that math end both ways, and I know which ending holds a press conference.` },
+    { id: "prod-dot-depleted", topic: "production", exec: "dot", pri: 2, when: (c) => c.lineTier >= 1 && c.lineTier < 3 && c.discretionary <= 0,
+      t: (c) => `The free money is gone: the wrap draws ${c.M(c.committedLeft)} and the line has ${c.M(Math.max(0, c.headroom))} left, so every buy from here is against the picture's own payroll. Two honest exits — release and let the curve pay the line back, or stop spending and *hope* the curve does. A film that ships owes the bank a story, and stories pay.` },
 
     // ---------- BOX OFFICE ----------
     { id: "bo-mona-open", topic: "boxoffice", exec: "mona", pri: 2, when: (c) => c.week === 0,
@@ -756,6 +778,17 @@ const DATA = (() => {
     // anti-repetition rotation, because while the problem exists the office
     // keeps pointing at it. (The UI only re-rolls on a situation change, so
     // this is the office not letting go, not a loop.)
+    // a reactive call (the UI just spent money) answers the button first: the
+    // office reacts to the exact spend, then resumes its usual watch.
+    if (ctx.lastSpend) {
+      const reactive = all.filter((h) => h.reactive && gated(h));
+      if (reactive.length) {
+        let pool = reactive.filter((h) => !avoid.includes(h.id));
+        if (!pool.length) pool = reactive;
+        const h = pick(pool);
+        return { exec: ADVISORS.find((a) => a.id === h.exec), text: h.t(ctx), tid: h.id };
+      }
+    }
     const urgent = all.filter((h) => h.pri === 3 && gated(h));
     let pool;
     if (urgent.length) {

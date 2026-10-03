@@ -60,14 +60,18 @@ const UI = (() => {
       case "casting": return JSON.stringify(S.castPicks || {});
       case "production":
         if (!f) return "none";
+        // the line tier joins the signature so the office re-rolls when a
+        // spend pushes the account across a depth band
+        const lim = GAME.creditLimit(), fu = GAME.studio.funds;
+        const lt = fu >= 0 ? 0 : (-fu / lim) >= 0.7 ? 3 : (-fu / lim) >= 0.35 ? 2 : 1;
         return [f.week, f.buzzNeg >= 10 ? 1 : 0, f.buzzPos >= 65 ? 1 : 0, f.buzzPos < 25 ? 1 : 0,
-          GAME.totalProduction() >= 60 ? 1 : 0, f.screened ? f.screenScore : 0, GAME.canRelease() ? 1 : 0].join(",");
+          GAME.totalProduction() >= 60 ? 1 : 0, f.screened ? f.screenScore : 0, GAME.canRelease() ? 1 : 0, lt].join(",");
       case "boxoffice": return GAME.boxoffice ? GAME.boxoffice.week : "none";
       default: return "static";
     }
   }
 
-  function renderHint(topic, force) {
+  function renderHint(topic, force, extra) {
     const slot = document.querySelector('.hint-slot[data-topic="' + topic + '"]');
     if (!slot) return;
     if (!GAME.advisorsOn || GAME.state === "title" || GAME.state === "gameover") {
@@ -79,7 +83,7 @@ const UI = (() => {
       if (Date.now() - (hintState.time[topic] || 0) < HINT_MIN_GAP) return; // still mid-note
       if (slot.hidden) return; // already showing the note for this situation
     }
-    const h = GAME.hint(topic);
+    const h = GAME.hint(topic, extra);
     if (!h) return;
     hintState.sig[topic] = sig;
     hintState.time[topic] = Date.now();
@@ -389,6 +393,44 @@ const UI = (() => {
     $("#btn-cast-go").disabled = !ok;
   }
 
+  // the casting ledger: the envelope (funds + line − fees − production draw)
+  // and what the pick buys (quality, social) — driven by GAME.castingLedger()
+  function renderCastLedger() {
+    const el = $("#cast-ledger");
+    if (!el) return;
+    const L = GAME.castingLedger();
+    if (!L) { el.hidden = true; el.innerHTML = ""; return; }
+    el.hidden = false;
+    const words = { safe: "in the black", steady: "a working line", stretched: "pushing the envelope", red: "the bank is coming" };
+    const tier = { safe: 0, steady: 1, stretched: 2, red: 3 }[L.posture];
+    const cls = tier >= 2 ? "bad" : "";
+    // account position across [−span, +span]; the hard line is the left edge
+    const span = Math.max(0.1, L.limit, Math.abs(L.afterAll));
+    const pos = (v) => Math.max(0, Math.min(100, (v + span) / (2 * span) * 100));
+    const bar = `<div class="linebar" data-tier="${tier}">` +
+      `<div class="lb-fill" style="left:${pos(0)}%;right:${100 - pos(L.afterAll)}%"></div>` +
+      `<div class="lb-tick lb-zero" style="left:${pos(0)}%" title="in the black"></div>` +
+      `<div class="lb-tick lb-hard" style="left:0%" title="the bank moves in here"></div></div>`;
+    const qCls = L.qDelta < 0 ? "bad" : "";
+    el.innerHTML = `
+      <h3>LEDGER <span class="lt-sub">what it costs</span></h3>
+      <div class="lt-hero ${tier >= 2 ? "hot" : ""} ${tier >= 3 ? "red" : ""}">
+        <div class="lt-hero-k">Cash after casting</div>
+        <div class="lt-hero-v">${sM(L.afterAll)}</div>
+        <div class="lt-hero-word">${words[L.posture]}</div>
+      </div>
+      ${bar}
+      <div class="dg-list">
+        <div class="dg-row ${L.afterFeesCash < 0 ? "bad" : ""}"><div class="dg-top"><span>After the fees</span><b>${sM(L.afterFeesCash)}</b></div></div>
+        <div class="dg-row ${cls}"><div class="dg-top"><span>After the picture</span><b>${sM(L.afterAll)}</b></div></div>
+        <div class="dg-row ${L.headroom < 0 ? "bad" : ""}"><div class="dg-top"><span>Line left to use</span><b>${L.headroom < 0 ? "the line is already too deep" : M(L.headroom)}</b></div></div>
+        <div class="dg-row ${qCls}"><div class="dg-top"><span>Projected quality</span><b>${L.projQ}/100 (${L.qDelta >= 0 ? "+" : ""}${L.qDelta} vs value)</b></div>
+        <div class="bar dg-bar"><div class="bar-fill ${qCls === "bad" ? "buzz-neg" : ""}" style="width:${L.projQ}%"></div></div></div>
+        <div class="dg-row"><div class="dg-top"><span>Social</span><b>draw ${L.draw} · +${L.socialGain}/wk · ads +${L.adBoostPct}%</b></div></div>
+      </div>
+      <p class="dg-fine">Production will draw ${M(L.budget)} from the same account the fees came out of.</p>`;
+  }
+
   function renderCasting() {
     const o = GAME.S.castOptions;
     if (!o) return;
@@ -398,6 +440,7 @@ const UI = (() => {
         <h3>${label}</h3>
         ${sortOrder(slot, o[slot]).map(i => talentHTML(slot, o[slot][i], i)).join("")}
       </div>`).join("");
+    $("#casting-grid").insertAdjacentHTML("beforeend", `<div class="cast-slot cast-ledger-slot" id="cast-ledger"></div>`);
     $$("#casting-grid .talent-card").forEach((c) => {
       c.addEventListener("click", () => {
         const slot = c.dataset.slot;
@@ -405,10 +448,12 @@ const UI = (() => {
         SFX.play.select();
         $$('#casting-grid .talent-card[data-slot="' + slot + '"]').forEach((x) => x.classList.toggle("selected", x === c));
         updateCastSummary();
+        renderCastLedger();
         renderHint("casting");
       });
     });
     updateCastSummary();
+    renderCastLedger();
   }
 
   RENDERERS.casting = function () { renderCasting(); renderHint("casting"); };
@@ -449,15 +494,19 @@ const UI = (() => {
       const affordable = GAME.canAfford(a.cost);
       const gain = Math.round(a.buzz * (1 + f.social / 200) * 10) / 10;
       return `<li class="ad-item ${unlocked ? "" : "locked"}">
-        <div class="ad-name">${a.name}<small>${a.sub} · +${gain} positive buzz</small></div>
+        <div class="ad-name">${a.name}<small>${a.sub} · +${gain} positive buzz${lineTag(GAME.studio.funds - a.cost)}</small></div>
         <span class="ad-cost">${M(a.cost)}</span>
-        <button data-ad="${a.id}" ${!unlocked || !affordable ? "disabled" : ""}>${unlocked ? "BUY" : "🔒"}</button>
+        <button data-ad="${a.id}" data-guard-cost="${a.cost}" ${!unlocked || !affordable ? "disabled" : ""}>${unlocked ? "BUY" : "🔒"}</button>
       </li>`;
     }).join("");
     $$("#ad-list button").forEach((b) => b.addEventListener("click", () => {
-      GAME.buyAd(b.dataset.ad);
-      SFX.play.cash();
-      renderProduction();
+      guardSpend(b, () => {
+        const spec = D.ADS.find((a) => a.id === b.dataset.ad);
+        GAME.buyAd(b.dataset.ad);
+        SFX.play.cash();
+        reactiveSpendNote(spec ? spec.name : "ad", spec ? spec.cost : 0);
+        renderProduction();
+      });
     }));
   }
 
@@ -491,8 +540,55 @@ const UI = (() => {
   function updateProdControls() {
     const f = GAME.film;
     if (!f) return;
-    $("#btn-screen").disabled = !GAME.canScreen();
+    const scr = $("#btn-screen");
+    scr.disabled = !GAME.canScreen();
+    scr.innerHTML = GAME.canScreen() ? "▸ SCREEN" + lineTag(GAME.studio.funds - 0.5) : "▸ SCREEN";
     $("#btn-release").disabled = !GAME.canRelease();
+  }
+
+  // ---------- "the line": the credit-line guards (purely informational) ----------
+  // No spend is ever blocked, but every spend is *seen*: the dashboard block,
+  // the button tag, the reactive office note — and past 70% of the line a
+  // second tap, so committing to the risk is a deliberate act.
+  let armedBtn = null;
+  function lineTierOfFunds(funds) {
+    const lim = GAME.creditLimit();
+    if (funds >= 0) return 0;
+    const use = Math.min(1, -funds / lim);
+    return use >= 0.7 ? 3 : use >= 0.35 ? 2 : 1;
+  }
+  function lineTag(fundsAfter) {
+    const tier = lineTierOfFunds(fundsAfter);
+    if (tier === 0) return "";
+    const use = Math.min(1, -fundsAfter / GAME.creditLimit());
+    return ` <small class="line-tag lt-${tier}">→ line ${Math.round(use * 100)}%</small>`;
+  }
+  function guardSpend(btn, doSpend) {
+    const cost = parseFloat(btn.dataset.guardCost) || 0;
+    if (btn && lineTierOfFunds(GAME.studio.funds - cost) >= 3 && armedBtn !== btn) {
+      armedBtn = btn;
+      btn.classList.add("armed");
+      if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
+      btn.innerHTML = "BANK FROWS — SURE?";
+      SFX.play.click();
+      return;
+    }
+    if (armedBtn && armedBtn !== btn) {
+      armedBtn.classList.remove("armed");
+      armedBtn.innerHTML = armedBtn.dataset.orig || "";
+      armedBtn = null;
+    }
+    if (armedBtn === btn && btn) {
+      btn.classList.remove("armed");
+      btn.innerHTML = btn.dataset.orig || btn.innerHTML;
+      armedBtn = null;
+    }
+    doSpend();
+  }
+  function reactiveSpendNote(what, cost) {
+    if (prodSpeed !== 1) return; // in autoplay the CREDIT LINE block is the indicator
+    if (lineTierOfFunds(GAME.studio.funds) < 1) return; // still in the black: no note
+    renderHint("production", true, { lastSpend: { what, cost } });
   }
 
   // the production mini-dashboard: a glanceable read of the picture in the
@@ -514,12 +610,29 @@ const UI = (() => {
         <div class="dg-bar-wrap"><div class="bar dg-bar"><div class="bar-fill ${p.projTotal > p.projCost ? "buzz-pos" : p.projTotal < p.projCost * 0.8 ? "buzz-neg" : ""}" style="width:${clampPct(p.projTotal / runMax * 100)}%"></div></div>` +
         `<div class="dg-tick" style="left:${clampPct(p.projCost / runMax * 100)}%" title="break-even"></div></div></div>`;
     const words = { hit: "tracking to hit", viable: "viable — weather dependent", rough: "a rough road", cliff: "on a cliff" };
+    // the CREDIT LINE block: where the account stands vs. the bankruptcy line
+    const span = Math.max(0.1, p.limit, Math.abs(p.funds));
+    const pos = (v) => Math.max(0, Math.min(100, (v + span) / (2 * span) * 100));
+    const tierWords = ["in the black", "first red", "deep red", "red line"];
+    const gamble = p.lineTier >= 1 ? `<div class="dg-gamble">in the red — must gross ≈${M(p.needToCover)} after release · projection says ${M(p.projTotal)} — <b>${p.projTotal >= p.needToCover ? "the bet can pay off" : "a pure gamble"}</b></div>` : "";
+    const lineBlock = `
+      <div class="dg-line" data-tier="${p.lineTier}">
+        <div class="dg-top"><span>Credit line</span><b>${tierWords[p.lineTier]}</b></div>
+        <div class="linebar" data-tier="${p.lineTier}">
+          <div class="lb-fill" style="left:${pos(0)}%;right:${100 - pos(p.funds)}%"></div>
+          <div class="lb-tick lb-zero" style="left:${pos(0)}%" title="in the black"></div>
+          <div class="lb-tick lb-hard" style="left:0%" title="the bank moves in here"></div>
+        </div>
+        <div class="dg-line-nums"><span>${M(Math.max(0, p.headroom))} until the bank moves in</span><span>${p.discretionary >= 0 ? `buy ≈${M(p.discretionary)} & still fund the wrap` : "the wrap eats the rest — spend nothing, or release"}</span></div>
+        ${gamble}
+      </div>`;
     $("#dash-body").innerHTML = `
       <div class="dg-hero ${p.band}">
         <div class="dg-hero-k">Projected success</div>
         <div class="dg-hero-v">${p.success}</div>
         <div class="dg-hero-word">${words[p.band] || ""}</div>
       </div>
+      ${lineBlock}
       <div class="dg-list">
         ${dg("Quality", p.quality, p.quality + "/100", p.quality >= 70 ? "good" : p.quality < 50 ? "bad" : "")}
         ${dg("Buzz net", (p.net + 20) / 80 * 100, (p.net >= 0 ? "+" : "\u2212") + Math.abs(p.net), p.net >= 15 ? "good" : p.net <= -5 ? "bad" : "")}
@@ -541,6 +654,7 @@ const UI = (() => {
     renderDashboard();
     renderMessages();
     updateProdControls();
+    updateTopbar(); // spend moves the topbar too — the whole screen should agree
     renderHint("production");
   }
 
@@ -583,7 +697,7 @@ const UI = (() => {
     SFX.play.pop();
     const choices = ev.choices.map((c, i) => {
       const disabled = c.cost > 0 && !GAME.canAfford(c.cost);
-      const costTxt = c.cost > 0 ? ` · ${M(c.cost)}` : " · no cost";
+      const costTxt = c.cost > 0 ? ` · ${M(c.cost)}${lineTag(GAME.studio.funds - c.cost)}` : " · no cost";
       return `<button class="event-choice" data-i="${i}" ${disabled ? "disabled" : ""}>
         <div class="ec-title">${c.label}${costTxt}</div>
         <div class="ec-detail">${esc(c.detail)}</div>
@@ -591,7 +705,9 @@ const UI = (() => {
     }).join("");
     openModal(ev.title, `<p>${esc(ev.text)}</p>${choices}`, false);
     $$("#modal-body .event-choice").forEach((b) => b.addEventListener("click", () => {
+      const ch = GAME.pendingEvent ? GAME.pendingEvent.choices[+b.dataset.i] : null;
       if (GAME.pendingEvent) GAME.resolveEvent(+b.dataset.i);
+      if (ch && ch.cost > 0) reactiveSpendNote(ch.label, ch.cost);
       closeModal();
       render();
     }));
@@ -670,12 +786,18 @@ const UI = (() => {
       <div class="screen-quotes">${quotes}</div>
       ${extra}`);
     const rb = $("#btn-reshoot");
-    if (rb) rb.addEventListener("click", () => {
-      SFX.play.cash();
-      GAME.reshoot();
-      closeModal();
-      renderProduction();
-    });
+    if (rb) {
+      rb.dataset.guardCost = "1.5";
+      rb.addEventListener("click", () => {
+        guardSpend(rb, () => {
+          SFX.play.cash();
+          GAME.reshoot();
+          closeModal();
+          reactiveSpendNote("reshoots", 1.5);
+          renderProduction();
+        });
+      });
+    }
   }
 
   // ============================================================
