@@ -45,6 +45,23 @@ function dataSmoke() {
   if (!all.some(t => t.tier === "A-List Star" || t.tier === "Bankable Star")) throw new Error("round missing a star");
   if (!round.dir.some(d => d.cost <= 2)) throw new Error("director pool missing a cheap");
   if (!round.dir.some(d => d.score >= 85)) throw new Error("director pool missing a top");
+  // dedupe polish: 20 rounds — no round repeats a quip, no pool repeats a
+  // director name or style (parodies are session-deduped; generated draws
+  // must be too). 20 rounds = <=520 name draws, safely inside the 1260 space.
+  for (let i = 0; i < 20; i++) {
+    const r2 = D.makeCastingRound();
+    const q2 = new Set();
+    for (const t of [...r2.lead, ...r2.co, ...r2.sup]) {
+      if (q2.has(t.quip)) throw new Error("round repeats a quip: " + t.quip);
+      q2.add(t.quip);
+    }
+    const n2 = new Set(), s2 = new Set();
+    for (const d of r2.dir) {
+      if (n2.has(d.name)) throw new Error("director pool repeats a name: " + d.name);
+      if (s2.has(d.style)) throw new Error("director pool repeats a style: " + d.style);
+      n2.add(d.name); s2.add(d.style);
+    }
+  }
   console.log("data smoke OK");
 }
 

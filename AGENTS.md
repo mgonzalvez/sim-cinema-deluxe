@@ -297,7 +297,13 @@ on `load()`/`restart()`/`newStudio()`, never in the blob.
    done (see Current Status; save v5, bankruptcy 100%);
    ~~casting ledger + "The Line" credit-line warning system~~ done
    (see Current Status; purely informational, stays v5).
-2. Optional polish: dedupe actor quips/director names, persist box-office
+2. Optional polish: ~~dedupe actor quips/director names~~ done (QUIPS 10→26 +
+   `DIRECTOR_STYLE` 5→9; quips and director styles are unique within a casting
+   round — spread-pass replacements release the replaced card's line so the
+   round set tracks the final slate, not the draw count; generated director
+   names use the same session-scoped `usedNames` dedupe as actors, with a
+   repeat-allowed fallback when the 1,260-name space exhausts in a long
+   session instead of a placeholder name); persist box-office
    movement baseline across reloads, mobile pass (the 4-column production grid
    with the dashboard sidebar — and now the 5-column casting grid — is dense
    on phones).

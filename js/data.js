@@ -42,7 +42,7 @@ const DATA = (() => {
   const FIRST_NAMES = ["Maxine", "Dexter", "Vivienne", "Colin", "Petra", "Hank", "Lucille", "Boris", "Tessa", "Ravi", "Greta", "Jules", "Otis", "Simone", "Walter", "Nina", "Felix", "Margot", "Ike", "Delia", "Reno", "Cleo", "Stan", "Opal", "Vince", "Harriet", "Buddy", "Lena", "Gus", "Pearl"];
   const LAST_NAMES = ["Vale", "Mercer", "Quinn", "Holloway", "Crane", "Beaumont", "Stark", "Voss", "Kessler", "Whitlock", "Marlowe", "Drummond", "Fox", "Barlow", "Sinclair", "Ashby", "Corliss", "Dane", "Ellery", "Frost", "Gunn", "Hale", "Ives", "Juno", "Kane", "Lark", "Moss", "Nix", "Olsen", "Pike"];
   const DIRECTOR_FIRST = ["Vera", "Sal", "Maren", "Kip", "Ezra", "Dottie", "Rhys", "Iris", "Cole", "Bette", "Murray", "Suki"];
-  const DIRECTOR_STYLE = ["method perfectionist", "one-take romantic", "practical-effects purist", "visionary maverick", "efficiency machine"];
+  const DIRECTOR_STYLE = ["method perfectionist", "one-take romantic", "practical-effects purist", "visionary maverick", "efficiency machine", "location fiend", "three-hour purist", "footage hoarder", "stunt-first auteur"];
 
   // ---------- parody personas (affectionate, one-off from real industry figures) ----------
   const PARODY_STARS = [
@@ -847,7 +847,20 @@ const DATA = (() => {
       const n = `${D.pick(D.FIRST_NAMES)} ${D.pick(D.LAST_NAMES)}`;
       if (!usedNames.has(n)) { usedNames.add(n); return n; }
     }
-    return "Anonymous Extra";
+    // space exhausted (many careers in one session): allow a repeat rather
+    // than a placeholder name on the card
+    return `${D.pick(D.FIRST_NAMES)} ${D.pick(D.LAST_NAMES)}`;
+  };
+
+  // same session-wide etiquette as actors: a director never reappears in a
+  // career (the two pools share LAST_NAMES but have disjoint first names, so
+  // one shared usedNames set can't cause cross-collisions)
+  D.makeDirectorName = () => {
+    for (let i = 0; i < 40; i++) {
+      const n = `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`;
+      if (!usedNames.has(n)) { usedNames.add(n); return n; }
+    }
+    return `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`;
   };
 
   const TIER_TABLE = [
@@ -858,6 +871,8 @@ const DATA = (() => {
     { tier: "Unknown",       drawMin: 15, drawMax: 40, costMin: 0.1, costMax: 0.5, socialMin: 0,  socialMax: 30 }
   ];
 
+  // 26 quips: a casting round shows up to 18 generated cards, and the round
+  // picks without replacement, so the pool must outsize the screen
   const QUIPS = [
     "Known for making every red carpet look like a parking lot.",
     "Has never once been late to a premiere. Allegedly.",
@@ -868,8 +883,36 @@ const DATA = (() => {
     "Once apologized to a popcorn machine. It went viral.",
     "Takes acting classes, yoga, and 'vibes seminars'.",
     "The casting director's cousin's friend. Works anyway.",
-    "Has a fan club. A small one. They are devoted."
+    "Has a fan club. A small one. They are devoted.",
+    "Once cried on a talk show. Nobody knows why. Not even them.",
+    "Does the same wave at every premiere. Practiced in the car.",
+    "Has a method. The method is a spreadsheet.",
+    "Refuses to say where they're from. Says 'out west'. It's Ohio.",
+    "Their agent is their step-brother. The arrangement has terms.",
+    "Can do three accents, but only in that order.",
+    "Once turned down a lead. The film became their breakout anyway.",
+    "Keeps a water bottle from every set. There are forty-seven bottles.",
+    "The trailer is longer than their interview. Both are good.",
+    "Insists on being called 'the talent'. The union is reviewing this.",
+    "Has a one-man stage show about this exact industry. Tickets are $9.",
+    "Cried during dailies. The dailies were of the boom operator.",
+    "Their red-carpet answer to every question is 'the script was a gift'.",
+    "Once played a villain so well the neighbors changed their locks.",
+    "The IMDb page says 'also: one voice role, one trailer, one rumor'.",
+    "Practices speeches in the shower. The neighbors rate it 6/10."
   ];
+
+  // Quips and director styles are unique within a casting round: 18+ cards on
+  // one screen never repeat the same line. Reset at the top of each round;
+  // the whole slate is built synchronously, so the set is the round.
+  const roundQuips = new Set();
+  const roundStyles = new Set();
+  const pickUnique = (pool, used) => {
+    const free = pool.filter(x => !used.has(x));
+    const x = D.pick(free.length ? free : pool);
+    used.add(x);
+    return x;
+  };
 
   D.makeActor = (roleIndex) => {
     // recognizable parodies, more likely in bigger roles; each appears at most once per session
@@ -902,7 +945,7 @@ const DATA = (() => {
       draw: Math.round(D.rand(t.drawMin, t.drawMax)),
       social: Math.round(D.rand(t.socialMin, t.socialMax)),
       cost: Math.round(D.rand(t.costMin, t.costMax) * 10) / 10,
-      quip: D.pick(QUIPS)
+      quip: pickUnique(QUIPS, roundQuips)
     };
   };
 
@@ -920,6 +963,7 @@ const DATA = (() => {
     const ratio = (t) => t.draw / Math.max(0.2, t.cost);
     if (!pool.some(isLow) && !pool.some(isBig)) {
       let idx = pool.map((_, i) => i).sort((a, b) => ratio(pool[a]) - ratio(pool[b]))[0];
+      roundQuips.delete(pool[idx].quip);
       pool[idx] = D.makeActorOfTier(roleIndex, Math.random() < 0.5 ? "Unknown" : (Math.random() < 0.5 ? "A-List Star" : "Bankable Star"));
     }
     return pool;
@@ -930,6 +974,8 @@ const DATA = (() => {
   // value-vs-name tradeoff is real — but which slot holds the cheap option is
   // left to the random draw, which keeps good play's cash path genuinely risky.
   D.makeCastingRound = () => {
+    roundQuips.clear();
+    roundStyles.clear();
     const isBig = (t) => t.tier === "A-List Star" || t.tier === "Bankable Star";
     const isLow = (t) => t.tier === "Unknown";
     const ratio = (t) => t.draw / Math.max(0.2, t.cost);
@@ -941,6 +987,7 @@ const DATA = (() => {
       const pool = pools[r];
       let idx = pool.map((_, i) => i).filter(i => !isLow(pool[i]) || tierName === "Unknown").sort((a, b) => ratio(pool[a]) - ratio(pool[b]))[0];
       if (idx == null) idx = pool.map((_, i) => i).sort((a, b) => pool[a].cost - pool[b].cost)[0];
+      roundQuips.delete(pool[idx].quip);
       pool[idx] = D.makeActorOfTier(r, tierName);
     };
     topUp("Unknown", isLow);
@@ -958,20 +1005,20 @@ const DATA = (() => {
       }
     }
     if (kind === "cheap") return {
-      name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
-      style: D.pick(D.DIRECTOR_STYLE),
+      name: D.makeDirectorName(),
+      style: pickUnique(D.DIRECTOR_STYLE, roundStyles),
       score: D.randInt(30, 65),
       cost: Math.round((1 + D.rand(0, 1)) * 10) / 10
     };
     if (kind === "top") return {
-      name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
-      style: D.pick(D.DIRECTOR_STYLE),
+      name: D.makeDirectorName(),
+      style: pickUnique(D.DIRECTOR_STYLE, roundStyles),
       score: D.randInt(85, 95),
       cost: Math.round((3 + D.rand(0, 2)) * 10) / 10
     };
     return {
-      name: `${D.pick(D.DIRECTOR_FIRST)} ${D.pick(D.LAST_NAMES)}`,
-      style: D.pick(D.DIRECTOR_STYLE),
+      name: D.makeDirectorName(),
+      style: pickUnique(D.DIRECTOR_STYLE, roundStyles),
       score: D.randInt(30, 92),
       cost: Math.round((1 + D.rand(0, 4)) * 10) / 10
     };
@@ -987,6 +1034,7 @@ const DATA = (() => {
     const replace = (kind, ok) => {
       let idx = pool.map((_, i) => i).filter(ok).sort((a, b) => ratio(pool[a]) - ratio(pool[b]))[0];
       if (idx == null) idx = pool.map((_, i) => i).sort((a, b) => pool[a].cost - pool[b].cost)[0];
+      roundStyles.delete(pool[idx].style);
       pool[idx] = D.makeDirector(kind);
     };
     if (!pool.some(isCheap)) replace("cheap", () => true);
