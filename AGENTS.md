@@ -611,3 +611,11 @@ arm state + tags). No save bump; no balance movement expected — verify.
   `node tools/browser-test.js` (drives the real UI in headless Chrome;
   `PHASE=production|boxoffice|script|casting|reviews|results|title` captures a
   screenshot of that screen and exits).
+
+## Registry & provenance rule (portfolio-wide)
+
+Personal project — completely separate from Apple work.
+
+- `.npmrc` pins `registry=https://registry.npmjs.org`. Never let Apple's internal npm mirror (`npm.apple.com`, `artifacts.apple.com/artifactory/...`) end up in `package-lock.json`; GitHub Actions can't reach it and CI fails with `ENOTFOUND`.
+- Audit before pushing: `../scripts/check-registry.sh` (add `--fix` to normalize).
+- No work credentials, internal hostnames, proprietary assets, or confidential material in this repo.
